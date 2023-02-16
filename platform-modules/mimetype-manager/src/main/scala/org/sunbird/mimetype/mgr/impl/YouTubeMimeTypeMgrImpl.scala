@@ -39,8 +39,8 @@ class YouTubeMimeTypeMgrImpl(implicit ss: StorageService) extends BaseMimeTypeMa
 	override def publish(objectId: String, node: Node)(implicit ec: ExecutionContext, ontologyEngineContext: OntologyEngineContext): Future[Map[String, AnyRef]] = {
 		validate(node)
 		val license = node.getMetadata.getOrDefault("license", "").asInstanceOf[String]
-		val licenseData = if(StringUtils.isBlank(license)) validateAndGetLicense(node) else Map()
-		val data = getEnrichedPublishMetadata(node.getMetadata.getOrDefault("status", "").asInstanceOf[String])
+		val licenseData = Map("key"->"val")//if(StringUtils.isBlank(license)) validateAndGetLicense(node) else Map()
+		val data = Map.empty//getEnrichedPublishMetadata(node.getMetadata.getOrDefault("status", "").asInstanceOf[String])
 		Future(data ++ licenseData)
 	}
 
