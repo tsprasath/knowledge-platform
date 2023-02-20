@@ -4,6 +4,7 @@ object Constants {
     val CREATE_OBJECT_CATEGORY: String = "createObjectCategory"
     val READ_OBJECT_CATEGORY: String = "readObjectCategory"
     val UPDATE_OBJECT_CATEGORY: String = "updateObjectCategory"
+    val UPLOAD_DATA_OBJECT_CATEGORY: String = "uploadObjectCategory"
     val IDENTIFIER: String = "identifier"
     val NAME: String = "name"
     val NODE_ID: String = "node_id"

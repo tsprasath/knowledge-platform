@@ -6,6 +6,7 @@ object ApiId {
 	final val CREATE_OBJECT_CATEGORY = "api.object.category.create"
 	final val READ_OBJECT_CATEGORY = "api.object.category.read"
 	final val UPDATE_OBJECT_CATEGORY = "api.object.category.update"
+	final val UPLOAD_DATA_OBJECT_CATEGORY = "api.object.category.upload"
 	final val CREATE_OBJECT_CATEGORY_DEFINITION = "api.object.category.definition.create"
 	final val READ_OBJECT_CATEGORY_DEFINITION = "api.object.category.definition.read"
 	final val UPDATE_OBJECT_CATEGORY_DEFINITION = "api.object.category.definition.update"
