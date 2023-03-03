@@ -68,11 +68,13 @@ public abstract class BaseSchemaValidator implements ISchemaValidator {
      * @param stream the InputStream for the schema.
      * @return the read schema.
      */
-    protected JsonSchema readSchema(InputStream stream) {
-        try (JsonSchemaReader reader = schemaReaderFactory.createSchemaReader(stream)) {
-            return reader.read();
-        }
+    protected JsonSchema readSchema(InputStream stream) throws IOException {
+    byte[] data = stream.readAllBytes();
+    ByteArrayInputStream bis = new ByteArrayInputStream(data);
+    try (JsonSchemaReader reader = schemaReaderFactory.createSchemaReader(bis)) {
+        return reader.read();
     }
+}
 
     protected JsonSchema readSchema(Path path) {
         try (JsonSchemaReader reader = schemaReaderFactory.createSchemaReader(path)) {
