@@ -153,7 +153,9 @@ object RedisCache extends RedisConnector {
 			var data = jedis.smembers(key).asScala.toList
 			logger.info("after " +data)
 			if (null != handler && (null == data || data.isEmpty)) {
+				logger.info("Before " +handler)
 				data = handler(key)
+				logger.info("After " +data)
 				if (null != data && !data.isEmpty)
 					saveList(key, data, ttl, false)
 			}
