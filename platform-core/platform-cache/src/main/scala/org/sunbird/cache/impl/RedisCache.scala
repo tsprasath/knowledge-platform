@@ -149,7 +149,9 @@ object RedisCache extends RedisConnector {
 	def getList(key: String, handler: (String) => List[String] = defaultListHandler, ttl: Int = 0): List[String] = {
 		val jedis = getConnection
 		try {
+			logger.info("Before " +key)
 			var data = jedis.smembers(key).asScala.toList
+			logger.info("after " +data)
 			if (null != handler && (null == data || data.isEmpty)) {
 				data = handler(key)
 				if (null != data && !data.isEmpty)
