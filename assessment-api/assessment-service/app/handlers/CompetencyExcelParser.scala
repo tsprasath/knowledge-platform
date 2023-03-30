@@ -16,11 +16,14 @@ object CompetencyExcelParser {
 
   private val logger: Logger = LoggerFactory.getLogger(getClass.getName)
 
-  private var getData: List[util.Map[String, AnyRef]] = List.empty
+  private var getData: List[java.util.Map[String,util.HashMap[String, AnyRef]]] = List.empty
+
+  private var getFinalData: List[java.util.Map[String,AnyRef]] = List.empty
+
+  private var listData :java.util.Map[String, AnyRef] = ?
+  private var fracclMap: java.util.Map[String,util.HashMap[String, AnyRef]] = ?
 
   def parseCompetencyData(xssFRow: XSSFRow) = {
-    val data = new java.util.HashMap().asInstanceOf[java.util.Map[String, AnyRef]]
-    val listData = new util.ArrayList[AnyRef]()
 
     val rowContent = (0 until xssFRow.getPhysicalNumberOfCells)
       .map(colId => Option(xssFRow.getCell(colId)).getOrElse("").toString).toList
@@ -35,29 +38,27 @@ object CompetencyExcelParser {
     val competencyId= rowContent.apply(7).trim
     val competency = rowContent.apply(8).trim
     val competencyLevelId = rowContent.apply(9).trim
-    listData.add(function)
-    listData.add(year)
-    listData.add(roleId)
-    listData.add(roleLabel)
-    listData.add(activityId)
-    listData.add(activityLabel)
-    listData.add(competencyId)
-    listData.add(competency)
-    listData.add(competencyLevelId)
-    //val competencyLevel = rowContent.apply(2).trim
-    data.put(competencyMapping, listData)
-    data
+    listData.put("function",function)
+    listData.put("year",year)
+    listData.put("roleId",roleId)
+    listData.put("roleLabel",roleLabel)
+    listData.put("activityLabel",activityLabel)
+    listData.put("competencyId",competencyId)
+    listData.put("competency",competency)
+    listData.put("competencyLevelId",competencyLevelId)
+    fracclMap.put(competencyMapping.concat(activityId), listData)
+    fracclMap
   }
 
 
-  def getCompetenciesData(sheet: XSSFSheet): List[util.Map[String, AnyRef]] = {
+  def getCompetenciesData(sheet: XSSFSheet): List[java.util.Map[String,util.HashMap[String, AnyRef]]]= {
+    logger.info("enter into the getCompetenciesData")
     val column = sheet.asScala.drop(1).map(row =>
       if (sheet.getWorkbook.getSheetIndex(sheet) == 1 || sheet.getWorkbook.getSheetIndex(sheet) == 8)
         row.getCell(4)
       else
         row.getCell(5)
     )
-
     val formatter = new DataFormatter()
     val uniqueCompetencies = column.map(cell => formatter.formatCellValue(cell)).toList
 
@@ -82,21 +83,23 @@ object CompetencyExcelParser {
     }).toList
     getData
   }
-  def getCompetency(file: File): List[java.util.Map[String, AnyRef]] = {
+
+
+  def getCompetency(file: File): List[java.util.Map[String,AnyRef]]= {
     logger.info("enter into the getCompetency method")
     val finalData: mutable.Map[String, List[Map[String, AnyRef]]] = mutable.Map.empty
     try {
       val workbook = new XSSFWorkbook(new FileInputStream(file))
       (1 until workbook.getNumberOfSheets)
         .foreach(index => {
-
-          getData = getCompetenciesData(workbook.getSheetAt(index))
+          if(index==1)
+            getData = getCompetenciesData(workbook.getSheetAt(index))
 
           val convertedData = getData.map(_.asScala.toMap)
           finalData += (workbook.getSheetName(index) -> convertedData)
-          getData = finalData.toList.flatMap { case (_, maps) => maps.map(convertMap) }
+          getFinalData = finalData.toList.flatMap { case (_, maps) => maps.map(convertMap) }
         })
-      getData
+      getFinalData
 
     } catch {
       case e: Exception => throw new Exception("Invalid File")
@@ -109,6 +112,8 @@ object CompetencyExcelParser {
     map.foreach { case (k, v) => javaMap.put(k, v) }
     javaMap
   }
+
+
 
 
 }
