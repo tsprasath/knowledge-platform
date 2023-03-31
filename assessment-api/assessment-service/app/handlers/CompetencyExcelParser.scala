@@ -16,13 +16,13 @@ object CompetencyExcelParser {
 
   private val logger: Logger = LoggerFactory.getLogger(getClass.getName)
 
-  private var getData: List[java.util.Map[String,util.HashMap[String, AnyRef]]] = List.empty
+  private var getData: List[util.Map[String,AnyRef]] = List.empty
 
   private var getFinalData: List[java.util.Map[String,AnyRef]] = List.empty
 
-  private var listData :java.util.Map[String, AnyRef] = ?
-  private var fracclMap: java.util.Map[String,util.HashMap[String, AnyRef]] = ?
-
+  private var listData :util.Map[String, AnyRef] = new util.HashMap[String, AnyRef]
+  private var fracclMap: mutable.Map[String, AnyRef] = mutable.Map.empty
+  private var competencyMap: util.Map[String, AnyRef] = new util.HashMap[String,AnyRef]()
   def parseCompetencyData(xssFRow: XSSFRow) = {
 
     val rowContent = (0 until xssFRow.getPhysicalNumberOfCells)
@@ -44,19 +44,20 @@ object CompetencyExcelParser {
     listData.put("roleLabel",roleLabel)
     listData.put("activityLabel",activityLabel)
     listData.put("competencyId",competencyId)
-    listData.put("competency",competency)
+    competencyMap.put(competencyId, competency)
+    listData.put("compefracclMaptency",competency)
     listData.put("competencyLevelId",competencyLevelId)
     fracclMap.put(competencyMapping.concat(activityId), listData)
-    fracclMap
+    listData
   }
 
 
-  def getCompetenciesData(sheet: XSSFSheet): List[java.util.Map[String,util.HashMap[String, AnyRef]]]= {
+  def getCompetenciesData(sheet: XSSFSheet)= {
     logger.info("enter into the getCompetenciesData")
     val column = sheet.asScala.drop(1).map(row =>
-      if (sheet.getWorkbook.getSheetIndex(sheet) == 1 || sheet.getWorkbook.getSheetIndex(sheet) == 8)
+      if (sheet.getWorkbook.getSheetIndex(sheet) == 1 || sheet.getWorkbook.getSheetIndex(sheet) == 8){
         row.getCell(4)
-      else
+      } else
         row.getCell(5)
     )
     val formatter = new DataFormatter()
@@ -92,8 +93,9 @@ object CompetencyExcelParser {
       val workbook = new XSSFWorkbook(new FileInputStream(file))
       (1 until workbook.getNumberOfSheets)
         .foreach(index => {
-          if(index==1)
+          if(index==1) {
             getData = getCompetenciesData(workbook.getSheetAt(index))
+          }
 
           val convertedData = getData.map(_.asScala.toMap)
           finalData += (workbook.getSheetName(index) -> convertedData)
@@ -112,8 +114,6 @@ object CompetencyExcelParser {
     map.foreach { case (k, v) => javaMap.put(k, v) }
     javaMap
   }
-
-
 
 
 }

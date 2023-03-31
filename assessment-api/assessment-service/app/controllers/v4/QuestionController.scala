@@ -207,16 +207,14 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
 			getResponse(ApiId.CREATE_QUESTION, questionActor, questionRequest)
 		}
 		)
-		val headers = commonHeaders(request.headers)
-		System.out.println("Headers is " + headers)
-		val body = requestBody()
-		System.out.println("body is " + body)
-		val question = body.getOrDefault("competency", new java.util.HashMap()).asInstanceOf[java.util.Map[String, AnyRef]]
-		question.putAll(headers)
-		val questionRequest = getRequest(question, headers, QuestionOperations.bulkUploadFrameworkMapping.toString)
-		setRequestContext(questionRequest, version, "competency", "competency")
-		getResult(ApiId.FRAMEWORK_COMPETENCY_QUESTION, questionActor, questionRequest)
-		//[request.type]
+		val f = Future.sequence(futures).map(results => results.map(_.asInstanceOf[Response]).groupBy(_.getResponseCode.toString).mapValues(listResult => {
+			listResult.map(result => {
+				setResponseEnvelope(result)
+				JavaJsonUtils.serialize(result.getResult)
+			})
+		})).map(f => Ok(Json.stringify(Json.toJson(f))).as("application/json"))
+		logger.info("in Future sequence")
+		Await.result(f, Duration.apply("30s"))
 	}
 
 }
