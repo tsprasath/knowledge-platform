@@ -148,7 +148,7 @@
         },
         "compatibilityLevel": {
             "type": "number",
-            "default": 1
+            "default": 2
         },
         "minGenieVersion": {
             "type": "string"
@@ -1280,6 +1280,12 @@
                 "type": "string"
             }
         },
+        "difficultyLevelIds": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
         "targetFWIds":{
             "type": "array",
             "items": {
@@ -1311,6 +1317,12 @@
             }
         },
         "targetTopicIds": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "targetDifficultyLevelIds": {
             "type": "array",
             "items": {
                 "type": "string"
@@ -1355,6 +1367,12 @@
                 "type": "string"
             }
         },
+        "se_difficultyLevelIds": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
         "se_boards":{
             "type": "array",
             "items": {
@@ -1380,6 +1398,12 @@
             }
         },
         "se_gradeLevels": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "se_difficultyLevels": {
             "type": "array",
             "items": {
                 "type": "string"
