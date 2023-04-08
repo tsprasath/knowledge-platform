@@ -738,6 +738,9 @@
     },
     "reviewStatus": {
       "type": "string"
+    },
+    "questionCount": {
+      "type": "integer"
     }
   },
   "additionalProperties": false
