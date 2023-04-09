@@ -25,7 +25,7 @@ object AssessmentManager {
 	val validStatus = List("Draft", "Review")
 
 	def create(request: Request, errCode: String)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
-		val visibility: String = request.getRequest.getOrDefault("visibility", "").asInstanceOf[String]
+		val visibility: String = request.getRequest.getOrDefault("visibility", "Default").asInstanceOf[String]
 		if (StringUtils.isNotBlank(visibility) && StringUtils.equalsIgnoreCase(visibility, "Parent"))
 			throw new ClientException(errCode, "Visibility cannot be Parent!")
 		RequestUtil.restrictProperties(request)
@@ -220,5 +220,9 @@ object AssessmentManager {
 				put("metadata", eventMetadata.asJava)
 			}}
 		(actor, context, objData, eData)
+	}
+
+	def createMapping(request: Request, str: String)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
+		oec.graphService.saveExternalProps(request)
 	}
 }

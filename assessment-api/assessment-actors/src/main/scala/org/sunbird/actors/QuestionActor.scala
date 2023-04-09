@@ -38,6 +38,7 @@ class QuestionActor @Inject()(implicit oec: OntologyEngineContext) extends BaseA
 		case "rejectQuestion" => reject(request)
 		case "copyQuestion" => copy(request)
 		case "bulkUploadQuestion" => bulkUpload(request)
+		case "bulkUploadFrameworkMapping" => AssessmentManager.createMapping(request, "ERR_QUESTION_CREATE")
 		case _ => ERROR(request.getOperation)
 	}
 

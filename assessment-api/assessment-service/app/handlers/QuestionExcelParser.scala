@@ -6,15 +6,18 @@ import org.apache.poi.xssf.usermodel.{XSSFRow, XSSFWorkbook}
 import java.io.{File, FileInputStream}
 import java.util
 import scala.collection.JavaConverters._
+import org.slf4j.{Logger, LoggerFactory}
+import org.sunbird.cache.impl.RedisCache
 
 object QuestionExcelParser {
 
+  private val logger: Logger = LoggerFactory.getLogger(RedisCache.getClass.getCanonicalName)
   def getQuestions(file: File) = {
 
     try {
       val workbook = new XSSFWorkbook(new FileInputStream(file))
       val sheet = workbook.getSheetAt(0)
-
+      logger.info("Inside the getQuestions")
       (1 until sheet.getPhysicalNumberOfRows)
         .filter(rowNum => {
           val oRow = Option(sheet.getRow(rowNum))
@@ -39,7 +42,7 @@ object QuestionExcelParser {
     defaultQuestion.put("code", "question")
     defaultQuestion.put("mimeType", "application/vnd.sunbird.question")
     defaultQuestion.put("objectType", "Question")
-    defaultQuestion.put("primaryCategory", "MTF Question")
+    defaultQuestion.put("primaryCategory", "Multiple Choice Question")
     defaultQuestion.put("qType", "MCQ")
     defaultQuestion.put("name", "Question")
     defaultQuestion
@@ -67,7 +70,8 @@ object QuestionExcelParser {
     val question = buildDefaultQuestion()
 
 
-    val rowContent = (0 until xssFRow.getPhysicalNumberOfCells).map(colId => Option(xssFRow.getCell(colId)).getOrElse("").toString).toList
+    val rowContent = (0 until xssFRow.getPhysicalNumberOfCells)
+      .map(colId => Option(xssFRow.getCell(colId)).getOrElse("").toString).toList
 
     val questionText = rowContent.apply(4)
     val answer = rowContent.apply(6).trim
@@ -85,7 +89,7 @@ object QuestionExcelParser {
     val editorState = new java.util.HashMap().asInstanceOf[java.util.Map[String, AnyRef]]
     editorState.put("options", options)
     editorState.put("question", questionText)
-
+    logger.info("Inside the parseQuestion")
     question.put("body", questionText)
     question.put("editorState", editorState)
     question
