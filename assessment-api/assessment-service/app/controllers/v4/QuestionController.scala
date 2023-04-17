@@ -3,7 +3,9 @@ package controllers.v4
 import akka.actor.{ActorRef, ActorSystem}
 import controllers.BaseController
 import handlers.{CompetencyExcelParser, QuestionExcelParser}
-import org.sunbird.common.dto.{Request, Response, ResponseHandler}
+import org.slf4j.{Logger, LoggerFactory}
+import org.sunbird.cache.impl.RedisCache
+import org.sunbird.common.dto.Response
 import org.sunbird.utils.AssessmentConstants
 import play.api.libs.json.Json
 import play.api.mvc.ControllerComponents
@@ -13,11 +15,6 @@ import javax.inject.{Inject, Named}
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
-import org.slf4j.{Logger, LoggerFactory}
-import org.sunbird.cache.impl.RedisCache
-import play.mvc.Http.MultipartFormData.FilePart
-
-import java.util
 
 class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionActor: ActorRef, cc: ControllerComponents, actorSystem: ActorSystem)(implicit exec: ExecutionContext) extends BaseController(cc) {
 
@@ -161,7 +158,7 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
       .file("file")
       .map { filePart =>
         val absolutePath = filePart.ref.path.toAbsolutePath
-        val fileName:String = filePart.filename
+        val fileName: String = filePart.filename
         QuestionExcelParser.getQuestions(fileName, absolutePath.toFile)
       }
     logger.info("questions after parsing " + questions)
@@ -193,8 +190,8 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
       .file("file")
       .map { filePart =>
         val absolutePath = filePart.ref.path.toAbsolutePath
-        println("createFrameworkMappingData:= "+absolutePath)
-       // CompetencyExcelParser.getExcelData(absolutePath.toFile)
+        println("createFrameworkMappingData:= " + absolutePath)
+        // CompetencyExcelParser.getExcelData(absolutePath.toFile)
         CompetencyExcelParser.getCompetency(absolutePath.toFile)
       }
     val futures = competency.get.map(competncy => {
