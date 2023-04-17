@@ -15,6 +15,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
 import org.slf4j.{Logger, LoggerFactory}
 import org.sunbird.cache.impl.RedisCache
+import play.mvc.Http.MultipartFormData.FilePart
 
 import java.util
 
@@ -160,13 +161,15 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
       .file("file")
       .map { filePart =>
         val absolutePath = filePart.ref.path.toAbsolutePath
-        QuestionExcelParser.getQuestions(absolutePath.toFile)
+        val fileName:String = filePart.filename
+        QuestionExcelParser.getQuestions(fileName, absolutePath.toFile)
       }
     logger.info("questions after parsing " + questions)
     val futures = questions.get.map(question => {
       val headers = commonHeaders(request.headers)
       question.putAll(headers)
       logger.info("put headers  " + headers)
+      logger.info("creating question := {}", questions.toString)
       val questionRequest = getRequest(question, headers, QuestionOperations.createQuestion.toString)
       logger.info("After the questionRequest")
       setRequestContext(questionRequest, version, objectType, schemaName)
@@ -182,7 +185,7 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
       })
     })).map(f => Ok(Json.stringify(Json.toJson(f))).as("application/json"))
     logger.info("in Future sequence")
-    Await.result(f, Duration.apply("30s"))
+    Await.result(f, Duration.apply("300s"))
   }
 
   def createFrameworkMappingData() = Action(parse.multipartFormData) { implicit request =>
