@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: learning-config
-  namespace: knowlg-api
+  namespace: {{ .Values.api_namespace }}
 data:
   learning-service_application.conf: |
     #Platform Configuration

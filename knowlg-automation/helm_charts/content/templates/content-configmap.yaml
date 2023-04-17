@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: content-xml-config
-  namespace: knowlg-api
+  namespace: {{ .Values.api_namespace }}
 data:
   content-service_logback.xml: |
     <configuration>
@@ -43,7 +43,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: content-config
-  namespace: knowlg-api
+  namespace: {{ .Values.api_namespace }}
 data:
   content-service_application.conf: |
     # This is the main configuration file for the application.

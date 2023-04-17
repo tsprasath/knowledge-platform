@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: search-xml-config
-  namespace: knowlg-api
+  namespace: {{ .Values.api_namespace }}
 data:
   search-service_logback.xml: |
     <configuration>
@@ -39,7 +39,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: search-config
-  namespace: knowlg-api
+  namespace: {{ .Values.api_namespace }}
 data:
   search-service_application.conf: |
     # This is the main configuration file for the application.
