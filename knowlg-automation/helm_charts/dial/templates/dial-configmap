@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: dial-xml-config
-  namespace: knowlg-api
+  namespace: {{ .Values.api_namespace }}
 data:
   dial-service_logback.xml: |
     <configuration>
@@ -40,7 +40,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: dial-config
-  namespace: knowlg-api
+  namespace: {{ .Values.api_namespace }}
 data:
   dial-service_application.conf: |-
     # This is the main configuration file for the application.
