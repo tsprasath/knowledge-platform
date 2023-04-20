@@ -1,8 +1,6 @@
 package controllers.v4
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.util.Helpers.Requiring
-import com.twitter.algebird.Applicative.pureOp
 import controllers.BaseController
 import handlers.{CompetencyExcelParser, QuestionExcelParser}
 import org.slf4j.{Logger, LoggerFactory}
