@@ -1,6 +1,8 @@
 package controllers.v4
 
 import akka.actor.{ActorRef, ActorSystem}
+import akka.util.Helpers.Requiring
+import com.twitter.algebird.Applicative.pureOp
 import controllers.BaseController
 import handlers.{CompetencyExcelParser, QuestionExcelParser}
 import org.slf4j.{Logger, LoggerFactory}
@@ -191,7 +193,6 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
       .map { filePart =>
         val absolutePath = filePart.ref.path.toAbsolutePath
         println("createFrameworkMappingData:= " + absolutePath)
-        // CompetencyExcelParser.getExcelData(absolutePath.toFile)
         CompetencyExcelParser.getCompetency(absolutePath.toFile)
       }
     val futures = competency.get.map(competncy => {
@@ -208,7 +209,6 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
       val headers = commonHeaders(request.headers)
       System.out.println("Headers is " + headers)
       val body = competencyRequestBody()
-      //val body = requestBody()
       System.out.println("body is " + body)
       val question = body.getOrDefault("competency", new java.util.HashMap()).asInstanceOf[java.util.Map[String, AnyRef]]
       competncy.putAll(headers)

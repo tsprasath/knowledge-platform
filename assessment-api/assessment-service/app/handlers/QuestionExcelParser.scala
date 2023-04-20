@@ -18,10 +18,10 @@ object QuestionExcelParser {
   def getQuestions(fileName: String, file: File) = {
     try {
       var board = "";
-      if (fileName.startsWith("GNM")) { // checks for the filename that starts with GNM or ANM
-        board = "GNM"
-      } else if (fileName.startsWith("ANM")) {
-        board = "ANM"
+      if (fileName.startsWith(Constants.GNM)) { // checks for the filename that starts with GNM or ANM
+        board = Constants.GNM
+      } else if (fileName.startsWith(Constants.ANM)) {
+        board = Constants.ANM
       }
       if (board.isEmpty) {
         throw new RuntimeException("Invalid file name")
@@ -104,7 +104,6 @@ object QuestionExcelParser {
 
     var i = -1
     val options = new util.ArrayList[util.Map[String, AnyRef]](rowContent.apply(9).split("\n").filter(StringUtils.isNotBlank).map(o => {
-      //      val option = o.split("[//)]").toList
       val option = o.split("[.).]").toList
       val optSeq = option.apply(0).trim
 
@@ -115,10 +114,10 @@ object QuestionExcelParser {
 
     val editorState = new util.HashMap().asInstanceOf[util.Map[String, AnyRef]]
     question.put("board", board)
-    setArrayValue(question, medium, "medium")
-    setArrayValue(question, subject, "subject")
-    setArrayValue(question, sheetName, "gradeLevel")
-    setArrayValue(question, difficultyLevel, "difficultyLevel")
+    setArrayValue(question, medium, Constants.medium)
+    setArrayValue(question, subject, Constants.subject)
+    setArrayValue(question, sheetName, Constants.gradeLevel)
+    setArrayValue(question, difficultyLevel, Constants.difficultyLevel)
     editorState.put("options", options)
     editorState.put("question", questionText)
     logger.info("Inside the parseQuestion")
