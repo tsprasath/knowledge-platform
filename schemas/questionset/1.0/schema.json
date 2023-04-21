@@ -739,6 +739,13 @@
     "reviewStatus": {
       "type": "string"
     },
+    "evaluable": {
+      "type": "boolean",
+      "default": false
+    },
+    "responseKey": {
+      "type": "string"
+    },
     "selectedQuestionType": {
       "type": "string"
     },
