@@ -742,7 +742,6 @@
     "selectedQuestionType": {
       "type": "string"
     },
-
     "requiredQuestionCount": {
       "type": "number"
     },
