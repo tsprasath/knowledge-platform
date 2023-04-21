@@ -739,8 +739,18 @@
     "reviewStatus": {
       "type": "string"
     },
-    "questionCount": {
-      "type": "integer"
+    "selectedQuestionType": {
+      "type": "string"
+    },
+
+    "requiredQuestionCount": {
+      "type": "number"
+    },
+    "criterias": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
     }
   },
   "additionalProperties": false
