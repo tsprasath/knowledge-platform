@@ -740,11 +740,11 @@
       "type": "string"
     },
     "selectedQuestionType": {
-      "type": "string"
-    },
-    "requiredQuestionCount": {
-      "type": "number"
-    },
+      "type": "string"
+    },
+    "requiredQuestionCount": {
+      "type": "number"
+    },
     "criterias": {
       "type": "array",
       "items": {
