@@ -174,7 +174,9 @@
           "Other"
         ]
       },
-      "default": ["English"]
+      "default": [
+        "English"
+      ]
     },
     "languageCode": {
       "type": "array"
@@ -185,19 +187,19 @@
     "framework": {
       "type": "string"
     },
-    "subject" : {
+    "subject": {
       "type": "array"
     },
-    "medium" : {
+    "medium": {
       "type": "array"
     },
-    "board" : {
+    "board": {
       "type": "string"
     },
-    "gradeLevel" : {
+    "gradeLevel": {
       "type": "array"
     },
-    "topic" : {
+    "topic": {
       "type": "array"
     },
     "boardIds": {
@@ -372,7 +374,6 @@
     "reviewError": {
       "type": "string"
     },
-
     "body": {
       "type": "string",
       "description": "External Property"
@@ -418,8 +419,6 @@
       "type": "object",
       "description": "External Property"
     },
-
-
     "qType": {
       "type": "string",
       "enum": [
@@ -471,7 +470,7 @@
       ],
       "default": "No"
     },
-    "interactionTypes":{
+    "interactionTypes": {
       "type": "array",
       "items": {
         "type": "string",
@@ -485,10 +484,10 @@
         ]
       }
     },
-    "templateId":{
+    "templateId": {
       "type": "string"
     },
-    "bloomsLevel" : {
+    "bloomsLevel": {
       "description": "Cognitive processes involved to answer the question set.",
       "type": "string",
       "enum": [
@@ -509,7 +508,6 @@
     "templateDeclaration": {
       "type": "object"
     },
-
     "dailySummaryReportEnabled": {
       "type": "string",
       "enum": [
@@ -575,7 +573,7 @@
     "accessibility": {
       "type": "array",
       "items": {
-          "type": "object"
+        "type": "object"
       }
     },
     "origin": {
@@ -598,6 +596,13 @@
     "downloadUrl": {
       "type": "string",
       "format": "url"
+    },
+    "evaluable": {
+      "type": "boolean",
+      "default": false
+    },
+    "responseKey": {
+      "type": "string"
     }
   },
   "additionalProperties": false
