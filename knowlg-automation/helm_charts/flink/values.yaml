@@ -74,10 +74,10 @@ log4j_console_properties: |
 
 base_config: |
   kafka {
-    broker-servers = "kafka-headless.knowlg-db.svc.cluster.local:9092"
-    producer.broker-servers = "kafka-headless.knowlg-db.svc.cluster.local:9092"
-    consumer.broker-servers = "kafka-headless.knowlg-db.svc.cluster.local:9092"
-    zookeeper = "kafka-zookeeper-headless.knowlg-db.svc.cluster.local:2181"
+    broker-servers = "kafka.lern.svc.cluster.local:9092"
+    producer.broker-servers = "kafka.lern.svc.cluster.local:9092"
+    consumer.broker-servers = "kafka.lern.svc.cluster.local:9092"
+    zookeeper = "kafka-zookeeper.lern.svc.cluster.local:2181"
     producer {
       max-request-size = 1572864
       batch.size = 98304
@@ -112,7 +112,7 @@ base_config: |
 
 
   redis {
-  host = redis-db.knowlg-db.svc.cluster.local
+  host = redis-master.lern.svc.cluster.local
   port = 6379
   connection {
     max = 2
@@ -123,17 +123,17 @@ base_config: |
       }
   }
   lms-cassandra {
-  host = cassandra-db.knowlg-db.svc.cluster.local
+  host = cassandra.lern.svc.cluster.local
   port = "9042"
   }
 
   neo4j {
-  routePath = "bolt://neo4j-db.knowlg-db.svc.cluster.local:7687"
+  routePath = "bolt://neo4j.inquiry.svc.cluster.local:7687"
   graph = "domain"
   }
 
   es {
-  basePath = "elasticsearch.knowlg-db.svc.cluster.local:9200"
+  basePath = "elasticsearch.lern.svc.cluster.local:9200"
   }
 
 search-indexer:
