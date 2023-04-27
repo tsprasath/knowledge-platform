@@ -1,7 +1,6 @@
 package controllers
 
 import java.util.UUID
-
 import akka.actor.ActorRef
 import akka.pattern.Patterns
 import org.sunbird.common.DateUtils
@@ -12,11 +11,20 @@ import utils.JavaJsonUtils
 
 import collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
+import org.slf4j.{Logger, LoggerFactory}
+import org.sunbird.cache.impl.RedisCache
+import play.api.libs.Files
 
 abstract class BaseController(protected val cc: ControllerComponents)(implicit exec: ExecutionContext) extends AbstractController(cc) {
 
+    private val logger: Logger = LoggerFactory.getLogger(RedisCache.getClass.getCanonicalName)
     def requestBody()(implicit request: Request[AnyContent]) = {
         val body = request.body.asJson.getOrElse("{}").toString
+        JavaJsonUtils.deserialize[java.util.Map[String, Object]](body).getOrDefault("request", new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]]
+    }
+
+    def competencyRequestBody()(implicit request:  Request[MultipartFormData[Files.TemporaryFile]]) = {
+        val body = request.body.file(Files.TemporaryFile.toString).getOrElse("{}").toString
         JavaJsonUtils.deserialize[java.util.Map[String, Object]](body).getOrDefault("request", new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]]
     }
 
@@ -69,5 +77,25 @@ abstract class BaseController(protected val cc: ControllerComponents)(implicit e
         }};
         request.setObjectType(objectType);
         request.getContext().putAll(contextMap)
+    }
+
+    def getResponse(apiId: String, actor: ActorRef, request: org.sunbird.common.dto.Request): Future[AnyRef] = {
+        Patterns.ask(actor, request, 30000) recoverWith { case e: Exception => Future(ResponseHandler.getErrorResponse(e)) }
+    }
+
+    def commonHeaders(headers: Headers): java.util.Map[String, Object] = {
+        val customHeaders = Map("x-channel-id" -> "channel", "X-Consumer-ID" -> "consumerId", "X-App-Id" -> "appId")
+        logger.info("Inside the common headers")
+        customHeaders.map(ch => {
+            val value = headers.get(ch._1)
+            if (value.isDefined && !value.isEmpty) {
+                collection.mutable.HashMap[String, Object](ch._2 -> value.get).asJava
+            } else {
+                collection.mutable.HashMap[String, Object]().asJava
+            }
+        }).reduce((a, b) => {
+            a.putAll(b)
+            return a
+        })
     }
 }
