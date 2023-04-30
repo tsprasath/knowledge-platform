@@ -1,9 +1,9 @@
 namespace: "knowlg-job"
 imagepullsecrets: ""
 dockerhub: ""
-repository: "aimansharief/kp-jobs"
+repository: "sunbirded.azurecr.io/knowledge-platform-jobs"
 # image_tag: "1.0.0"
-image_tag: "latest"
+image_tag: "release-5.2.1_RC1_5816fae_77"
 serviceMonitor:
   enabled: false
 replicaCount: 1
@@ -658,3 +658,185 @@ audit-history-indexer:
     # state.savepoints.dir: file:///tmp
 
   job_classname: org.sunbird.job.audithistory.task.AuditHistoryIndexerStreamTask       
+
+content-publish:
+  content-publish: |+
+    include file("/data/flink/conf/base-config.conf")
+    kafka {
+      input.topic = dev.publish.job.request
+      post_publish.topic = dev.content.postpublish.request
+      mvc.topic = dev.mvc.processor.job.request
+      error.topic = dev.learning.events.failed
+      groupId = dev-content-publish-group
+    }
+    task {
+      consumer.parallelism = 1
+      parallelism = 1
+      router.parallelism = 1
+    }
+    redis {
+      host=redis-master.lern.svc.cluster.local
+      port=6379
+      database {
+        contentCache.id = 0
+      }
+    }
+    content {
+      bundleLocation = "/tmp/contentBundle"
+      isECARExtractionEnabled = true
+      retry_asset_download_count = 1
+      keyspace = "staging_content_store"
+      table = "content_data"
+      tmp_file_location = "/tmp"
+      objectType = ["Content", "ContentImage","Collection","CollectionImage"]
+      mimeType = ["application/pdf",
+                                   "application/vnd.ekstep.ecml-archive",
+                                   "application/vnd.ekstep.html-archive",
+                                   "application/vnd.android.package-archive",
+                                   "application/vnd.ekstep.content-archive",
+                                   "application/epub",
+                                   "application/msword",
+                                   "application/vnd.ekstep.h5p-archive",
+                                   "video/webm",
+                                   "video/mp4",
+                                   "application/vnd.ekstep.content-collection",
+                                   "video/quicktime",
+                                   "application/octet-stream",
+                                   "application/json",
+                                   "application/javascript",
+                                   "application/xml",
+                                   "text/plain",
+                                   "text/html",
+                                   "text/javascript",
+                                   "text/xml",
+                                   "text/css",
+                                   "image/jpeg",
+                                   "image/jpg",
+                                   "image/png",
+                                   "image/tiff",
+                                   "image/bmp",
+                                   "image/gif",
+                                   "image/svg+xml",
+                                   "image/x-quicktime",
+                                   "video/avi",
+                                   "video/mpeg",
+                                   "video/quicktime",
+                                   "video/3gpp",
+                                   "video/mp4",
+                                   "video/ogg",
+                                   "video/webm",
+                                   "video/msvideo",
+                                   "video/x-msvideo",
+                                   "video/x-qtc",
+                                   "video/x-mpeg",
+                                   "audio/mp3",
+                                   "audio/mp4",
+                                   "audio/mpeg",
+                                   "audio/ogg",
+                                   "audio/webm",
+                                   "audio/x-wav",
+                                   "audio/wav",
+                                   "audio/mpeg3",
+                                   "audio/x-mpeg-3",
+                                   "audio/vorbis",
+                                   "application/x-font-ttf",
+                                   "application/vnd.ekstep.plugin-archive",
+                                   "video/x-youtube",
+                                   "video/youtube",
+                                   "text/x-url"]
+      asset_download_duration = "60 seconds"
+      stream {
+        enabled = true
+        mimeType = ["video/mp4", "video/webm"]
+      }
+      artifact.size.for_online= 209715200
+
+      downloadFiles {
+        spine = ["appIcon"]
+        full = ["appIcon", "grayScaleAppIcon", "artifactUrl", "itemSetPreviewUrl", "media"]
+      }
+
+      nested.fields=["badgeAssertions", "targets", "badgeAssociations", "plugins", "me_totalTimeSpent", "me_totalPlaySessionCount", "me_totalTimeSpentInSec", "batches", "trackable", "credentials", "discussionForum", "provider", "osMetadata", "actions", "transcripts", "accessibility"]
+
+    }
+    cloud_storage {
+        folder {
+            content = "content"
+            artifact = "artifact"
+        }
+    }
+
+    hierarchy {
+      keyspace = "dev_hierarchy_store"
+      table = "content_hierarchy"
+    }
+
+    contentTypeToPrimaryCategory {
+      ClassroomTeachingVideo: "Explanation Content"
+      ConceptMap: "Learning Resource"
+      Course: "Course"
+      CuriosityQuestionSet: "Practice Question Set"
+      eTextBook: "eTextbook"
+      Event: "Event"
+      EventSet: "Event Set"
+      ExperientialResource: "Learning Resource"
+      ExplanationResource: "Explanation Content"
+      ExplanationVideo: "Explanation Content"
+      FocusSpot: "Teacher Resource"
+      LearningOutcomeDefinition: "Teacher Resource"
+      MarkingSchemeRubric: "Teacher Resource"
+      PedagogyFlow: "Teacher Resource"
+      PracticeQuestionSet: "Practice Question Set"
+      PracticeResource: "Practice Question Set"
+      SelfAssess: "Course Assessment"
+      TeachingMethod: "Teacher Resource"
+      TextBook: "Digital Textbook"
+      Collection: "Content Playlist"
+      ExplanationReadingMaterial: "Learning Resource"
+      LearningActivity: "Learning Resource"
+      LessonPlan: "Content Playlist"
+      LessonPlanResource: "Teacher Resource"
+      PreviousBoardExamPapers: "Learning Resource"
+      TVLesson: "Explanation Content"
+      OnboardingResource: "Learning Resource"
+      ReadingMaterial: "Learning Resource"
+      Template: "Template"
+      Asset: "Asset"
+      Plugin: "Plugin"
+      LessonPlanUnit: "Lesson Plan Unit"
+      CourseUnit: "Course Unit"
+      TextBookUnit: "Textbook Unit"
+      Asset: "Certificate Template"
+    }
+
+    compositesearch.index.name = "compositesearch"
+    search.document.type = "cs"
+    enableDIALContextUpdate = "Yes"
+
+    cloud_storage_type=""
+    cloud_storage_key=""
+    cloud_storage_secret=""
+    cloud_storage_container=""
+
+    cloudstorage {
+      metadata.replace_absolute_path= false
+      relative_path_prefix="CONTENT_STORAGE_BASE_PATH"
+      metadata.list=["appIcon","posterImage","artifactUrl","downloadUrl","variants","previewUrl","pdfUrl", "streamingUrl", "toc_url"]
+      read_base_path="https://dev.blob.core.windows.net"
+      write_base_path="https://dev.blob.core.windows.net"
+    }
+
+    master.category.validation.enabled ="yes"
+    service {
+      print.basePath = kp_print_service_base_url # TODO check on this service
+    }
+
+  flink-conf: |+
+    jobmanager.memory.flink.size: 1024m
+    taskmanager.memory.flink.size: 1024m
+    taskmanager.numberOfTaskSlots: 1
+    parallelism.default: 1
+    jobmanager.execution.failover-strategy: region
+    taskmanager.memory.network.fraction: 0.1
+  
+  job_classname: org.sunbird.job.content.task.ContentPublishStreamTask
