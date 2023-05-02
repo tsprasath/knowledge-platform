@@ -629,7 +629,7 @@
       "default": false
     },
     "responseKey": {
-      "type": "string"
+      "type": "array"
     }
   },
   "additionalProperties": false
