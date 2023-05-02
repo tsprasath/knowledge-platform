@@ -9,6 +9,7 @@ import utils.Constants
 import java.io.{File, FileInputStream}
 import java.util
 import scala.collection.JavaConverters._
+import scala.util.control.Breaks._
 
 object QuestionExcelParser {
 
@@ -36,12 +37,14 @@ object QuestionExcelParser {
             oRow match {
               case Some(x) => {
                 val questionType = sheet.getRow(rowNum).getCell(11)
-                val isMCQ = questionType.toString.startsWith(Constants.MCQ) || questionType.toString.endsWith(Constants.MCQ) // checks questionType is MCQ
-                val isMTF = Constants.MTF.equals(questionType.toString) || Constants.MATCH_THE_FOLLOWING.equals(questionType.toString)
-                val isFITB = Constants.FITB.equals(questionType.toString)
+                val isMCQ = questionType.toString.trim.equalsIgnoreCase(Constants.MCQ) || (questionType.toString.trim.startsWith(Constants.MCQ)
+                && questionType.toString.trim.endsWith(Constants.MCQ_SINGLE_SELECT))// checks questionType is MCQ
+                //val isMTF = Constants.MTF.equals(questionType.toString) || Constants.MATCH_THE_FOLLOWING.equals(questionType.toString)
+                //val isFITB = Constants.FITB.equals(questionType.toString)
                 val answerCell = sheet.getRow(rowNum).getCell(9)
                 val isAnswerNotBlank = answerCell.getCellType() != CellType.BLANK
-                isMCQ || isMTF || isFITB && isAnswerNotBlank
+                //isMCQ || isMTF || isFITB && isAnswerNotBlank
+                isMCQ && isAnswerNotBlank
               }
               case None => false
             }
@@ -81,10 +84,18 @@ object QuestionExcelParser {
   // determines whether the Opton is correct
   def isOptionAnswer(optSeq: String, answerText: String): Boolean = {
 
-    val correctOpt = answerText.split(",").map(_.trim)
+    val correctOpt = answerText.split("[,\n]").map(_.trim)
 
-    correctOpt.contains(optSeq)
-
+    var boolean = false
+    breakable {
+      for (index <- 0 until correctOpt.size) {
+          boolean = correctOpt.apply(index).toLowerCase.startsWith(optSeq.toLowerCase)
+          if (boolean.equals(true)) {
+            break()
+          }
+        }
+    }
+    boolean
   }
 
   def parseQuestion(xssFRow: XSSFRow, sheetName: String, board: String) = {
@@ -122,7 +133,7 @@ object QuestionExcelParser {
     logger.info("Inside the parseQuestion")
     question.put("body", questionText)
     question.put("editorState", editorState)
-
+    question.put("answer", answer)
     question
   }
 
