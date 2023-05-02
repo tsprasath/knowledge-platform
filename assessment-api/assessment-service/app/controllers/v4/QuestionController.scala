@@ -2,7 +2,7 @@ package controllers.v4
 
 import akka.actor.{ActorRef, ActorSystem}
 import controllers.BaseController
-import handlers.{CompetencyExcelParser, QuestionExcelParser}
+import handlers.QuestionExcelParser
 import org.slf4j.{Logger, LoggerFactory}
 import org.sunbird.cache.impl.RedisCache
 import org.sunbird.common.dto.Response
@@ -184,46 +184,4 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
     logger.info("in Future sequence")
     Await.result(f, Duration.apply("300s"))
   }
-
-  def createFrameworkMappingData() = Action(parse.multipartFormData) { implicit request =>
-    val competency = request.body
-      .file("file")
-      .map { filePart =>
-        val absolutePath = filePart.ref.path.toAbsolutePath
-        println("createFrameworkMappingData:= " + absolutePath)
-        CompetencyExcelParser.getCompetency(absolutePath.toFile)
-      }
-    val futures = competency.get.map(competncy => {
-      val headers = commonHeaders(request.headers)
-      logger.info("put headers  " + headers)
-      val questionRequest = getRequest(competncy, headers, QuestionOperations.createQuestion.toString)
-      logger.info("After the questionRequest")
-      setRequestContext(questionRequest, version, objectType, schemaName)
-      logger.info("After the setRequestContext")
-      getResponse(ApiId.CREATE_QUESTION, questionActor, questionRequest)
-    }
-    )
-    val futures1 = competency.get.map(competncy => {
-      val headers = commonHeaders(request.headers)
-      System.out.println("Headers is " + headers)
-      val body = competencyRequestBody()
-      System.out.println("body is " + body)
-      val question = body.getOrDefault("competency", new java.util.HashMap()).asInstanceOf[java.util.Map[String, AnyRef]]
-      competncy.putAll(headers)
-      val questionRequest = getRequest(competncy, headers, QuestionOperations.bulkUploadFrameworkMapping.toString)
-      setRequestContext(questionRequest, version, "competency", "competency")
-      getResult(ApiId.FRAMEWORK_COMPETENCY_QUESTION, questionActor, questionRequest)
-    })
-
-    logger.info("After the getResponse")
-    val f = Future.sequence(futures1).map(results => results.map(_.asInstanceOf[Response]).groupBy(_.getResponseCode.toString).mapValues(listResult => {
-      listResult.map(result => {
-        setResponseEnvelope(result)
-        JavaJsonUtils.serialize(result.getResult)
-      })
-    })).map(f => Ok(Json.stringify(Json.toJson(f))).as("application/json"))
-    logger.info("in Future sequence")
-    Await.result(f, Duration.apply("30s"))
-  }
-
 }
