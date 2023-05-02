@@ -671,7 +671,7 @@
     "accessibility": {
       "type": "array",
       "items": {
-          "type": "object"
+        "type": "object"
       }
     },
     "outcomeDeclaration": {
@@ -739,24 +739,15 @@
     "reviewStatus": {
       "type": "string"
     },
+    "questionCount": {
+      "type": "integer"
+    },
     "evaluable": {
       "type": "boolean",
       "default": false
     },
     "responseKey": {
       "type": "array"
-    },
-    "selectedQuestionType": {
-      "type": "string"
-    },
-    "requiredQuestionCount": {
-      "type": "number"
-    },
-    "criterias": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      }
     }
   },
   "additionalProperties": false
