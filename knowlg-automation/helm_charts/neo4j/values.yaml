@@ -1,6 +1,6 @@
-db_namespace: knowlg-db
+db_namespace: dev
 replicaCount: 1
-image: pallakartheekreddy/neo4j:3.3.0
+image: sunbirded.azurecr.io/neo4j:3.3.0
 authEnabled: false
 network:
   port: 7474
@@ -16,5 +16,5 @@ volumes:
     defaultStorageClass:
       requests:
         storage: 2Gi
-kafka_connection: kafka-headless.knowlg-db.svc.cluster.local:9092
+kafka_connection: kafka.dev.svc.cluster.local:9092
 learning_graph_events: dev.learning.graph.events
