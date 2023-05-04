@@ -29,12 +29,8 @@ object DataNode {
     def create(request: Request, dataModifier: (Node) => Node = defaultDataModifier)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Node] = {
       val isEvaluable = request.get("evaluable").asInstanceOf[Boolean]
       if (isEvaluable) {
-        val editorState = request.get("editorState").asInstanceOf[util.Map[String, AnyRef]]
-        val question = editorState.get("question").asInstanceOf[util.Map[String, AnyRef]]
-        val options = question.get("options").asInstanceOf[util.List[util.Map[String, AnyRef]]]
-        val responseKeys = options.filter(_.get("answer").asInstanceOf[Boolean])
-          .map(option => aes.encrypt(option.get("value").asInstanceOf[String]))
-          .asJava
+        val options = request.get("editorState").asInstanceOf[util.Map[String, AnyRef]].get("question").asInstanceOf[util.Map[String, AnyRef]].get("options").asInstanceOf[util.List[util.Map[String, AnyRef]]]
+        val responseKeys = options.filter(_.get("answer").asInstanceOf[Boolean]).map(option => aes.encrypt(option.get("value").asInstanceOf[String])).asJava
         request.put("responseKey", responseKeys)
       }
       DefinitionNode.validate(request).map(node => {
