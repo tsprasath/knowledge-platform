@@ -318,6 +318,6 @@ data:
       metadata.replace_absolute_path=true
       relative_path_prefix="{{ .Values.cloudstorage_relative_path_prefix_content }}"
       metadata.list="{{ .Values.cloudstorage_metadata_list }}"
-      read_base_path="{{ .Values.cloudstorage_read_base_path }}"
-      write_base_path="{{ .Values.cloudstorage_write_base_path }}"
+      read_base_path="{{ .Values.cloud_storage_base_url }}"
+      write_base_path="{{ .Values.cloud_storage_base_url }}"
     }
