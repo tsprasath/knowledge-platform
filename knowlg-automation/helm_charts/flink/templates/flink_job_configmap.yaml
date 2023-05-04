@@ -207,7 +207,7 @@ data:
     cloudstorage.metadata.replace_absolute_path=false
     cloudstorage.relative_path_prefix= "CONTENT_STORAGE_BASE_PATH"
     cloudstorage.read_base_path="https://{{ .Values.cloud_storage_key }}.core.windows.net"
-    cloudstorage.write_base_path=["https://{{ .Values.cloud_storage_key }}.core.windows.net","https://obj.dev.sunbird.org"]
+    cloudstorage.write_base_path=["https://{{ .Values.cloud_storage_key }}.core.windows.net"]
     cloudstorage.metadata.list=["appIcon","posterImage","artifactUrl","downloadUrl","variants","previewUrl","pdfUrl", "streamingUrl", "toc_url"]
 
     cloud_storage_type={{ .Values.cloud_service_provider }}
@@ -288,7 +288,6 @@ data:
     cloud_storage_key={{ .Values.cloud_storage_key }}
     cloud_storage_secret={{ .Values.cloud_storage_secret }}
     cloud_storage_container={{ .Values.cloud_storage_content_bucketname }}
-    cloud_storage_endpoint=""
 
 
   flink-conf: |+
@@ -410,7 +409,6 @@ data:
     cloud_storage_key={{ .Values.cloud_storage_key }}
     cloud_storage_secret={{ .Values.cloud_storage_secret }}
     cloud_storage_container={{ .Values.cloud_storage_dial_bucketname }}
-    cloud_storage_endpoint=""
 
 
   flink-conf: |+
