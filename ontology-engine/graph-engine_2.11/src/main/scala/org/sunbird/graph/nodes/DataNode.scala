@@ -32,15 +32,10 @@ object DataNode {
         val editorState = request.get("editorState").asInstanceOf[util.Map[String, AnyRef]]
         val question = editorState.get("question").asInstanceOf[util.Map[String, AnyRef]]
         val options = question.get("options").asInstanceOf[util.List[util.Map[String, AnyRef]]]
-        val responseKeys = new util.ArrayList[String]()
-        for (option <- options) {
-          if (option.get("answer").asInstanceOf[Boolean]) {
-            val answer = option.get("value").asInstanceOf[String]
-            val encryptedValue = aes.encrypt(answer)
-            responseKeys.add(encryptedValue)
-          }
-        }
-        request.put("responseKey", responseKeys);
+        val responseKeys = options.filter(_.get("answer").asInstanceOf[Boolean])
+          .map(option => aes.encrypt(option.get("value").asInstanceOf[String]))
+          .asJava
+        request.put("responseKey", responseKeys)
       }
       DefinitionNode.validate(request).map(node => {
         val response = oec.graphService.addNode(request.graphId, dataModifier(node))
@@ -143,7 +138,7 @@ object DataNode {
                 oec.graphService.updateExternalProps(req)
         } else Future(new Response)
     }
-    
+
     private def createRelations(graphId: String, node: Node, context: util.Map[String, AnyRef])(implicit ec: ExecutionContext, oec: OntologyEngineContext) : Future[Response] = {
         val relations: util.List[Relation] = node.getAddedRelations
         if (CollectionUtils.isNotEmpty(relations)) {
@@ -197,7 +192,7 @@ object DataNode {
         }
         list
     }
-    
+
     private def defaultDataModifier(node: Node) = {
         node
     }
