@@ -33,9 +33,7 @@ object JwtGenerator {
       val verifier = JWT.require(algorithm).build()
       verifier.verify(token)
       val payload = JWT.decode(token).getPayload
-      println("printing payload",payload)
       val data = new String(Base64.getUrlDecoder.decode(payload),StandardCharsets.UTF_8)
-      println("printing data",data)
       data
     } catch {
       case ex: Exception => {
