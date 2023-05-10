@@ -2,7 +2,6 @@ package org.sunbird.managers
 
 import java.util
 import java.util.concurrent.CompletionException
-
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.commons.lang3.StringUtils
 import org.sunbird.cache.impl.RedisCache
@@ -22,7 +21,8 @@ import com.mashape.unirest.http.Unirest
 import org.apache.commons.collections4.{CollectionUtils, MapUtils}
 import org.sunbird.graph.OntologyEngineContext
 import org.sunbird.telemetry.logger.TelemetryManager
-import org.sunbird.utils.HierarchyConstants
+import org.sunbird.utils.{HierarchyConstants, JwtGenerator}
+import org.sunbird.utils.Constants
 
 object HierarchyManager {
 
@@ -30,7 +30,7 @@ object HierarchyManager {
     val schemaVersion: String = "1.0"
     val imgSuffix: String = ".img"
     val hierarchyPrefix: String = "qs_hierarchy_"
-    val statusList = List("Live", "Unlisted", "Flagged")
+    val statusList = List("Live", "Unlisted", "Flagged", "Review","Draft")
     val ASSESSMENT_OBJECT_TYPES = List("Question", "QuestionSet")
 
     val keyTobeRemoved = {
@@ -722,5 +722,61 @@ object HierarchyManager {
         updatedBranchingLogic
     }
 
-
+    @throws[Exception]
+    def fetchHierarchy(request: Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
+        val rootNodeFuture = getRootNode(request)
+        rootNodeFuture.map(rootNode => {
+            if (StringUtils.equalsIgnoreCase(Constants.RETIRED, rootNode.getMetadata.getOrDefault(Constants.STATUS, "").asInstanceOf[String])) {
+                Future(ResponseHandler.ERROR(ResponseCode.RESOURCE_NOT_FOUND, ResponseCode.RESOURCE_NOT_FOUND.name(), Constants.ROOTID  + request.get(Constants.ROOTID) + "does not exist"))
+            }
+            val bookmarkId = request.get(Constants.BOOKMARKID).asInstanceOf[String]
+            var metadata: util.Map[String, AnyRef] = NodeUtil.serialize(rootNode, new util.ArrayList[String](), request.getContext.get(Constants.SCHEMANAME).asInstanceOf[String], request.getContext.get(Constants.VERSION).asInstanceOf[String])
+            val hierarchy = fetchHierarchy(request, rootNode.getIdentifier)
+            hierarchy.map(hierarchy => {
+                val children = hierarchy.getOrDefault(Constants.CHILDREN, new util.ArrayList[java.util.Map[String, AnyRef]]).asInstanceOf[util.ArrayList[java.util.Map[String, AnyRef]]]
+                val leafNodeIds = new util.ArrayList[String]()
+                fetchAllLeafNodes(children, leafNodeIds)
+                getLatestLeafNodes(leafNodeIds).map(leafNodesMap => {
+                    updateLatestLeafNodes(children, leafNodesMap)
+                    val identifiers = children
+                      .flatMap(children => Option(children.get(Constants.IDENTIFIER)).map(_.asInstanceOf[String]))
+                      .map(identifier => identifier)
+                    val token = JwtGenerator.generateToken(request, identifiers)
+                    metadata.put(Constants.CHILDREN, children)
+                    metadata.put(Constants.IDENTIFIER, request.get(Constants.ROOTID))
+                    metadata.put(Constants.QUESTIONSETTOKEN, token)
+                    if (StringUtils.isNotEmpty(bookmarkId))
+                        metadata = filterBookmarkHierarchy(metadata.get(Constants.CHILDREN).asInstanceOf[util.List[util.Map[String, AnyRef]]], bookmarkId)
+                    if (MapUtils.isEmpty(metadata)) {
+                        ResponseHandler.ERROR(ResponseCode.RESOURCE_NOT_FOUND, ResponseCode.RESOURCE_NOT_FOUND.name(), Constants.BOOKMARKID  + bookmarkId + " does not exist")
+                    } else {
+                        ResponseHandler.OK.put(Constants.QUESTIONSET, metadata)
+                    }
+                })
+            }).flatMap(f => f)
+        }).flatMap(f => f) recoverWith { case e: ResourceNotFoundException => {
+            val searchResponse = searchRootIdInElasticSearch(request.get(Constants.ROOTID).asInstanceOf[String])
+            searchResponse.map(rootHierarchy => {
+                if (!rootHierarchy.isEmpty && StringUtils.isNotEmpty(rootHierarchy.asInstanceOf[util.HashMap[String, AnyRef]].get(Constants.IDENTIFIER).asInstanceOf[String])) {
+                    val unPublishedBookmarkHierarchy = getUnpublishedBookmarkHierarchy(request, rootHierarchy.asInstanceOf[util.HashMap[String, AnyRef]].get(Constants.IDENTIFIER).asInstanceOf[String])
+                    unPublishedBookmarkHierarchy.map(hierarchy => {
+                        if (!hierarchy.isEmpty) {
+                            val children = hierarchy.getOrDefault(Constants.CHILDREN, new util.ArrayList[java.util.Map[String, AnyRef]]).asInstanceOf[util.ArrayList[java.util.Map[String, AnyRef]]]
+                            val leafNodeIds = new util.ArrayList[String]()
+                            fetchAllLeafNodes(children, leafNodeIds)
+                            getLatestLeafNodes(leafNodeIds).map(leafNodesMap => {
+                                updateLatestLeafNodes(children, leafNodesMap)
+                                hierarchy.put(Constants.CHILDREN, children)
+                            })
+                            ResponseHandler.OK.put(Constants.QUESTIONSET, hierarchy)
+                        } else
+                            ResponseHandler.ERROR(ResponseCode.RESOURCE_NOT_FOUND, ResponseCode.RESOURCE_NOT_FOUND.name(), Constants.ROOTID  + request.get(Constants.ROOTID) + " does not exist")
+                    })
+                } else {
+                    Future(ResponseHandler.ERROR(ResponseCode.RESOURCE_NOT_FOUND, ResponseCode.RESOURCE_NOT_FOUND.name(), Constants.ROOTID + request.get(Constants.ROOTID) + " does not exist"))
+                }
+            }).flatMap(f => f)
+        }
+        }
+    }
 }
