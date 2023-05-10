@@ -30,7 +30,7 @@ object HierarchyManager {
     val schemaVersion: String = "1.0"
     val imgSuffix: String = ".img"
     val hierarchyPrefix: String = "qs_hierarchy_"
-    val statusList = List("Live", "Unlisted", "Flagged", "Review","Draft")
+    val statusList = List("Live", "Unlisted", "Flagged")
     val ASSESSMENT_OBJECT_TYPES = List("Question", "QuestionSet")
 
     val keyTobeRemoved = {
