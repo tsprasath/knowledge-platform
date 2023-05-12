@@ -9,6 +9,7 @@ public class Constants {
     public static String MTF = "MTF";
     public static String FITB = "Fill in the blanks";
     public static String GNM = "GNM";
+    public static String GENERAL_NURSING_MIDWIFERY = "General Nursing Midwifery";
     public static String ANM = "ANM";
     public static String medium = "medium";
     public static String subject = "subject";
