@@ -17,23 +17,31 @@ import org.sunbird.parseq.Task
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
+import org.sunbird.graph.utils.AESCrypto
 
 
 object DataNode {
 
   private val SYSTEM_UPDATE_ALLOWED_CONTENT_STATUS = List("Live", "Unlisted")
+    var aes: AESCrypto.type = AESCrypto
 
     @throws[Exception]
     def create(request: Request, dataModifier: (Node) => Node = defaultDataModifier)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Node] = {
-        DefinitionNode.validate(request).map(node => {
-            val response = oec.graphService.addNode(request.graphId, dataModifier(node))
-            response.map(node => DefinitionNode.postProcessor(request, node)).map(result => {
-                val futureList = Task.parallel[Response](
-                    saveExternalProperties(node.getIdentifier, node.getExternalData, request.getContext, request.getObjectType),
-                    createRelations(request.graphId, node, request.getContext))
-                futureList.map(list => result)
-            }).flatMap(f => f) recoverWith { case e: CompletionException => throw e.getCause}
-        }).flatMap(f => f)
+      val isEvaluable = request.get("evaluable").asInstanceOf[Boolean]
+      if (isEvaluable) {
+        val options = request.get("editorState").asInstanceOf[util.Map[String, AnyRef]].get("question").asInstanceOf[util.Map[String, AnyRef]].get("options").asInstanceOf[util.List[util.Map[String, AnyRef]]]
+        val responseKeys = options.filter(_.get("answer").asInstanceOf[Boolean]).map(option => aes.encrypt(option.get("value").asInstanceOf[String])).asJava
+        request.put("responseKey", responseKeys)
+      }
+      DefinitionNode.validate(request).map(node => {
+        val response = oec.graphService.addNode(request.graphId, dataModifier(node))
+        response.map(node => DefinitionNode.postProcessor(request, node)).map(result => {
+          val futureList = Task.parallel[Response](
+            saveExternalProperties(node.getIdentifier, node.getExternalData, request.getContext, request.getObjectType),
+            createRelations(request.graphId, node, request.getContext))
+          futureList.map(list => result)
+        }).flatMap(f => f) recoverWith { case e: CompletionException => throw e.getCause }
+      }).flatMap(f => f)
     }
 
     @throws[Exception]
@@ -126,7 +134,7 @@ object DataNode {
                 oec.graphService.updateExternalProps(req)
         } else Future(new Response)
     }
-    
+
     private def createRelations(graphId: String, node: Node, context: util.Map[String, AnyRef])(implicit ec: ExecutionContext, oec: OntologyEngineContext) : Future[Response] = {
         val relations: util.List[Relation] = node.getAddedRelations
         if (CollectionUtils.isNotEmpty(relations)) {
@@ -180,7 +188,7 @@ object DataNode {
         }
         list
     }
-    
+
     private def defaultDataModifier(node: Node) = {
         node
     }
