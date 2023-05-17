@@ -17,5 +17,6 @@ object Constants {
   val IDENTIFIER: String = "identifier"
   val QUESTIONSETTOKEN: String = "questionSetToken"
   val QUESTIONSET: String = "questionSet"
+  val SHUFFLE: String = "shuffle";
 
 }

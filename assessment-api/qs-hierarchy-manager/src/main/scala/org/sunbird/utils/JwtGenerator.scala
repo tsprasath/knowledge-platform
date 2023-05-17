@@ -12,34 +12,16 @@ object JwtGenerator {
 
   val secret: String = Platform.getString("secret.key","")
 
-  def generateToken(request: Request, childIds: Seq[String]): String = {
-
-    val now = new Date()
-
-    val jwtBuilder = JWT.create()
-      .withIssuedAt(now)
-      .withClaim(Constants.CONTENTID, request.get(Constants.ROOTID).asInstanceOf[String])
-      .withClaim(Constants.COLLECTIONID, request.get(Constants.COLLECTIONID).asInstanceOf[String])
-      .withClaim(Constants.USERID, request.get(Constants.USERID).asInstanceOf[String])
-      .withClaim(Constants.ATTEMPTID, request.get(Constants.ATTEMPTID).asInstanceOf[String])
-      .withArrayClaim(Constants.QUESTIONLIST, childIds.toArray)
+  def jwt(in: Map[String, String], inArray: Map[String, Array[String]], timeStamp: Date = new Date()): String = {
+     val jwtBuilder = JWT.create().withIssuedAt(timeStamp)
+     in.foreach(i => jwtBuilder.withClaim(i._1, i._2))
+     inArray.foreach(i => jwtBuilder.withArrayClaim(i._1, i._2))
     jwtBuilder.sign(Algorithm.HMAC256(secret))
-
   }
 
-  def decodeToken(token: String): String = {
-    try {
-      val algorithm = Algorithm.HMAC256(secret)
-      val verifier = JWT.require(algorithm).build()
-      verifier.verify(token)
-      val payload = JWT.decode(token).getPayload
-      val data = new String(Base64.getUrlDecoder.decode(payload),StandardCharsets.UTF_8)
-      data
-    } catch {
-      case ex: Exception => {
-        println(s"Error decoding JWT token: ${ex.getMessage}")
-        throw ex
-      }
-    }
+  def jwtPayload(token: String): String = {
+    JWT.require(Algorithm.HMAC256(secret)).build().verify(token)
+    new String(Base64.getUrlDecoder.decode(JWT.decode(token).getPayload), StandardCharsets.UTF_8)
   }
+
 }

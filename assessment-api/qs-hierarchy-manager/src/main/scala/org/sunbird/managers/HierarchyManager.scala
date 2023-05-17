@@ -24,6 +24,9 @@ import org.sunbird.telemetry.logger.TelemetryManager
 import org.sunbird.utils.{HierarchyConstants, JwtGenerator}
 import org.sunbird.utils.Constants
 
+import scala.util.Random
+import scala.collection.JavaConverters._
+
 object HierarchyManager {
 
     val schemaName: String = "questionset"
@@ -723,7 +726,7 @@ object HierarchyManager {
     }
 
     @throws[Exception]
-    def fetchHierarchy(request: Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
+    def fetchQuestionSetHierarchy(request: Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
         val rootNodeFuture = getRootNode(request)
         rootNodeFuture.map(rootNode => {
             if (StringUtils.equalsIgnoreCase(Constants.RETIRED, rootNode.getMetadata.getOrDefault(Constants.STATUS, "").asInstanceOf[String])) {
@@ -734,15 +737,35 @@ object HierarchyManager {
             val hierarchy = fetchHierarchy(request, rootNode.getIdentifier)
             hierarchy.map(hierarchy => {
                 val children = hierarchy.getOrDefault(Constants.CHILDREN, new util.ArrayList[java.util.Map[String, AnyRef]]).asInstanceOf[util.ArrayList[java.util.Map[String, AnyRef]]]
+                val shouldShuffle = children.asScala.exists { child =>
+                   Option(child.get(Constants.SHUFFLE)).getOrElse(false).asInstanceOf[Boolean]
+                }
+                if (shouldShuffle) {
+                    val shuffledChildren = children.asScala.map { child =>
+                        val childChildren = child.getOrDefault(Constants.CHILDREN, new util.ArrayList[util.LinkedHashMap[String, Any]]).asInstanceOf[util.ArrayList[util.LinkedHashMap[String, Any]]]
+                        val shuffledChildChildren = Random.shuffle(childChildren.asScala).asJava
+                        child.put(Constants.CHILDREN, shuffledChildChildren)
+                        child
+                    }.asJava
+                    metadata.put(Constants.CHILDREN, shuffledChildren)
+                } else {
+                    metadata.put(Constants.CHILDREN, children)
+                }
                 val leafNodeIds = new util.ArrayList[String]()
                 fetchAllLeafNodes(children, leafNodeIds)
                 getLatestLeafNodes(leafNodeIds).map(leafNodesMap => {
                     updateLatestLeafNodes(children, leafNodesMap)
                     val identifiers = children
                       .flatMap(children => Option(children.get(Constants.IDENTIFIER)).map(_.asInstanceOf[String]))
-                      .map(identifier => identifier)
-                    val token = JwtGenerator.generateToken(request, identifiers)
-                    metadata.put(Constants.CHILDREN, children)
+                      .map(identifier => identifier).toArray
+                    val userMap: util.Map[String, String] = new util.HashMap[String, String]()
+                    val questionMap: util.HashMap[String, Array[String]] = new util.HashMap[String, Array[String]]()
+                    userMap.put(Constants.CONTENTID, request.get(Constants.ROOTID).asInstanceOf[String])
+                    userMap.put(Constants.COLLECTIONID, request.get(Constants.COLLECTIONID).asInstanceOf[String])
+                    userMap.put(Constants.USERID, request.get(Constants.USERID).asInstanceOf[String])
+                    userMap.put(Constants.ATTEMPTID, request.get(Constants.ATTEMPTID).asInstanceOf[String])
+                    questionMap.put(Constants.QUESTIONLIST, identifiers)
+                    val token: String = JwtGenerator.jwt(userMap.asScala.toMap, questionMap.asScala.toMap)
                     metadata.put(Constants.IDENTIFIER, request.get(Constants.ROOTID))
                     metadata.put(Constants.QUESTIONSETTOKEN, token)
                     if (StringUtils.isNotEmpty(bookmarkId))

@@ -42,7 +42,7 @@ class QuestionSetActor @Inject()(implicit oec: OntologyEngineContext) extends Ba
 		case "importQuestionSet" => importQuestionSet(request)
 		case "systemUpdateQuestionSet" => systemUpdate(request)
 		case "copyQuestionSet" => copy(request)
-		case "fetchHierarchy" => HierarchyManager.fetchHierarchy(request)
+		case "fetchHierarchy" => HierarchyManager.fetchQuestionSetHierarchy(request)
 		case _ => ERROR(request.getOperation)
 	}
 
