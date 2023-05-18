@@ -695,11 +695,11 @@ data:
     }
 
     plugin.media.base.url="https://dev.knowlg.sunbird.org"
-
+    
     cloudstorage {
-      metadata.replace_absolute_path=true
-      relative_path_prefix="{{ .Values.cloudstorage_relative_path_prefix_content }}"
-      metadata.list="{{ .Values.cloudstorage_metadata_list }}"
-      read_base_path="{{ .Values.cloudstorage_read_base_path }}"
-      write_base_path="{{ .Values.cloudstorage_write_base_path }}"
+        metadata.replace_absolute_path=true
+        relative_path_prefix=CONTENT_STORAGE_BASE_PATH
+        metadata.list={{ .Values.cloudstorage_metadata_list | toJson | }}
+        read_base_path="{{ .Values.cloudstorage_read_base_path }}" 
+        write_base_path={{ .Values.cloudstorage_write_base_path | toJson }}
     }
