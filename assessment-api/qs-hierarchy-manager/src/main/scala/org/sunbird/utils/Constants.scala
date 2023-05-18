@@ -18,5 +18,6 @@ object Constants {
   val QUESTIONSETTOKEN: String = "questionSetToken"
   val QUESTIONSET: String = "questionSet"
   val SHUFFLE: String = "shuffle";
+  val TIMESTAMP: String = "timestamp"
 
 }

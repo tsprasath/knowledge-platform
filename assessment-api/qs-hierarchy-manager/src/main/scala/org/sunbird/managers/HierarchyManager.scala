@@ -26,6 +26,7 @@ import org.sunbird.utils.Constants
 
 import scala.util.Random
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 object HierarchyManager {
 
@@ -755,9 +756,7 @@ object HierarchyManager {
                 fetchAllLeafNodes(children, leafNodeIds)
                 getLatestLeafNodes(leafNodeIds).map(leafNodesMap => {
                     updateLatestLeafNodes(children, leafNodesMap)
-                    val identifiers = children
-                      .flatMap(children => Option(children.get(Constants.IDENTIFIER)).map(_.asInstanceOf[String]))
-                      .map(identifier => identifier).toArray
+                    val identifiers = extractIdentifiers(children)
                     val userMap: util.Map[String, String] = new util.HashMap[String, String]()
                     val questionMap: util.HashMap[String, Array[String]] = new util.HashMap[String, Array[String]]()
                     userMap.put(Constants.CONTENTID, request.get(Constants.ROOTID).asInstanceOf[String])
@@ -765,7 +764,7 @@ object HierarchyManager {
                     userMap.put(Constants.USERID, request.get(Constants.USERID).asInstanceOf[String])
                     userMap.put(Constants.ATTEMPTID, request.get(Constants.ATTEMPTID).asInstanceOf[String])
                     questionMap.put(Constants.QUESTIONLIST, identifiers)
-                    val token: String = JwtGenerator.jwt(userMap.asScala.toMap, questionMap.asScala.toMap)
+                    val token: String = JwtGenerator.generateToken(userMap.asScala.toMap, questionMap.asScala.toMap)
                     metadata.put(Constants.IDENTIFIER, request.get(Constants.ROOTID))
                     metadata.put(Constants.QUESTIONSETTOKEN, token)
                     if (StringUtils.isNotEmpty(bookmarkId))
@@ -801,5 +800,14 @@ object HierarchyManager {
             }).flatMap(f => f)
         }
         }
+    }
+
+    def extractIdentifiers(children: util.List[util.Map[String, AnyRef]]): Array[String] = {
+        children.asScala.flatMap { child =>
+            val identifier = Option(child.get(Constants.IDENTIFIER)).map(_.asInstanceOf[String])
+            val nestedChildren = Option(child.get(Constants.CHILDREN)).map(_.asInstanceOf[util.List[util.Map[String, AnyRef]]])
+            val nestedIdentifiers = nestedChildren.map(extractIdentifiers).getOrElse(Array.empty[String])
+            identifier ++ nestedIdentifiers
+        }.toArray
     }
 }
