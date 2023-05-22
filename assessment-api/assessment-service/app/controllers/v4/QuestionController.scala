@@ -143,4 +143,26 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
 		setRequestContext(questionRequest, version, objectType, schemaName)
 		getResult(ApiId.COPY_QUESTION, questionActor, questionRequest)
 	}
+
+	def readDetails(identifier: String, mode: Option[String], fields: Option[String]) = Action.async { implicit request =>
+		val headers = commonHeaders()
+		val question = new java.util.HashMap().asInstanceOf[java.util.Map[String, Object]]
+		question.putAll(headers)
+		question.putAll(Map("identifier" -> identifier, "fields" -> fields.getOrElse(""), "mode" -> mode.getOrElse("read")).asJava)
+		val questionRequest = getRequest(question, headers, QuestionOperations.readQuestionDetails.toString)
+		setRequestContext(questionRequest, version, objectType, schemaName)
+		getResult(ApiId.READ_QUESTION_DETAILS, questionActor, questionRequest)
+	}
+	def listDetails(fields: Option[String]) = Action.async { implicit request =>
+		val headers = commonHeaders()
+		val body = requestBody()
+		val question = body.getOrDefault("search", new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]];
+		question.putAll(headers)
+		question.put("fields", fields.getOrElse(""))
+		val questionRequest = getRequest(question, headers, QuestionOperations.listQuestionsDetails.toString)
+		questionRequest.put("identifiers", questionRequest.get("identifier"))
+		setRequestContext(questionRequest, version, objectType, schemaName)
+		getResult(ApiId.LIST_QUESTIONS_DETAILS, questionActor, questionRequest)
+	}
+
 }
