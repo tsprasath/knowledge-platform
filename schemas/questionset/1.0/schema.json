@@ -671,7 +671,7 @@
     "accessibility": {
       "type": "array",
       "items": {
-          "type": "object"
+        "type": "object"
       }
     },
     "outcomeDeclaration": {
@@ -741,6 +741,13 @@
     },
     "questionCount": {
       "type": "integer"
+    },
+    "evaluable": {
+      "type": "boolean",
+      "default": false
+    },
+    "responseKey": {
+      "type": "array"
     }
   },
   "additionalProperties": false

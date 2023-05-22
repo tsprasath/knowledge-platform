@@ -602,7 +602,7 @@
     "accessibility": {
       "type": "array",
       "items": {
-          "type": "object"
+        "type": "object"
       }
     },
     "origin": {
@@ -625,6 +625,12 @@
     "downloadUrl": {
       "type": "string",
       "format": "url"
+    }, "evaluable": {
+      "type": "boolean",
+      "default": false
+    },
+    "responseKey": {
+      "type": "array"
     }
   },
   "additionalProperties": false
