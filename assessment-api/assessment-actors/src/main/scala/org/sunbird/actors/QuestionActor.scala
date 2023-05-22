@@ -35,6 +35,7 @@ class QuestionActor @Inject()(implicit oec: OntologyEngineContext) extends BaseA
 		case "importQuestion" => importQuestion(request)
 		case "systemUpdateQuestion" => systemUpdate(request)
 		case "listQuestions" => listQuestions(request)
+		case "listQuestionsDetails" => listQuestionsDetails(request)
 		case "rejectQuestion" => reject(request)
 		case "copyQuestion" => copy(request)
 		case _ => ERROR(request.getOperation)
@@ -115,6 +116,18 @@ class QuestionActor @Inject()(implicit oec: OntologyEngineContext) extends BaseA
 		DataNode.search(request).map(nodeList => {
 			val questionList = nodeList.map(node => {
 					NodeUtil.serialize(node, fields, node.getObjectType.toLowerCase.replace("Image", ""), request.getContext.get("version").asInstanceOf[String])
+			}).asJava
+			ResponseHandler.OK.put("questions", questionList).put("count", questionList.size)
+		})
+	}
+
+	def listQuestionsDetails(request: Request): Future[Response] = {
+		RequestUtil.validateListRequest(request)
+		val fields: util.List[String] = JavaConverters.seqAsJavaListConverter(request.get("fields").asInstanceOf[String].split(",").filter(field => StringUtils.isNotBlank(field) && !StringUtils.equalsIgnoreCase(field, "null"))).asJava
+		request.getRequest.put("fields", fields)
+		DataNode.searchDetails(request).map(nodeList => {
+			val questionList = nodeList.map(node => {
+				NodeUtil.serialize(node, fields, node.getObjectType.toLowerCase.replace("Image", ""), request.getContext.get("version").asInstanceOf[String])
 			}).asJava
 			ResponseHandler.OK.put("questions", questionList).put("count", questionList.size)
 		})
