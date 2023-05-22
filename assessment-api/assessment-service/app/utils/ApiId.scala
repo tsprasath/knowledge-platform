@@ -23,6 +23,7 @@ object ApiId {
 	val IMPORT_QUESTION = "api.question.import"
 	val SYSTEM_UPDATE_QUESTION = "api.question.system.update"
 	val LIST_QUESTIONS = "api.questions.list"
+	val LIST_QUESTIONS_DETAILS = "api.questions.list.details"
 	val REJECT_QUESTION = "api.question.reject"
 	val COPY_QUESTION = "api.question.copy"
 

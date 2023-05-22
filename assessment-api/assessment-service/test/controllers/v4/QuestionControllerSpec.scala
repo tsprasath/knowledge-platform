@@ -65,8 +65,13 @@ class QuestionControllerSpec extends BaseSpec {
 		status(result)(defaultAwaitTimeout) must equalTo(OK)
 	}
 
-	"list should list all the questions for given list of ids in the request" in {
+	"list should not list all the questions for given list of ids in the request" in {
 		val result = controller.list(None)(FakeRequest())
+		isOK(result)
+		status(result)(defaultAwaitTimeout) must equalTo(OK)
+	}
+	"list should list all the questions for given list of ids in the request" in {
+		val result = controller.listDetails(None)(FakeRequest())
 		isOK(result)
 		status(result)(defaultAwaitTimeout) must equalTo(OK)
 	}
