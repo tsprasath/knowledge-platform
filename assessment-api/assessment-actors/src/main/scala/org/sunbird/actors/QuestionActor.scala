@@ -39,6 +39,7 @@ class QuestionActor @Inject()(implicit oec: OntologyEngineContext) extends BaseA
 		case "copyQuestion" => copy(request)
 		case "bulkUploadQuestion" => bulkUpload(request)
 		case "bulkUploadFrameworkMapping" => AssessmentManager.createMapping(request, "ERR_QUESTION_CREATE")
+		case "listPrivateQuestions" => listPrivateQuestions(request)
 		case _ => ERROR(request.getOperation)
 	}
 
@@ -142,5 +143,17 @@ class QuestionActor @Inject()(implicit oec: OntologyEngineContext) extends BaseA
 
 	def bulkUpload(request: Request): Future[Response] = {
 		AssessmentManager.create(request, "ERR_QUESTION_CREATE")
+	}
+
+	def listPrivateQuestions(request: Request): Future[Response] = {
+		RequestUtil.validateListRequest(request)
+		val fields: util.List[String] = JavaConverters.seqAsJavaListConverter(request.get("fields").asInstanceOf[String].split(",").filter(field => StringUtils.isNotBlank(field) && !StringUtils.equalsIgnoreCase(field, "null"))).asJava
+		request.getRequest.put("fields", fields)
+		DataNode.searchPrivate(request).map(nodeList => {
+			val questionList = nodeList.map(node => {
+				NodeUtil.serialize(node, fields, node.getObjectType.toLowerCase.replace("Image", ""), request.getContext.get("version").asInstanceOf[String])
+			}).asJava
+			ResponseHandler.OK.put("questions", questionList).put("count", questionList.size)
+		})
 	}
 }
