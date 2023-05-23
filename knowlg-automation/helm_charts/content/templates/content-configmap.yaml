@@ -436,7 +436,7 @@ data:
         }
         # Need to depreacte 
         media {
-            base.url: "https://dev.knowlg.sunbird.org"
+            base.url: "https://{{ .Values.domain}}"
         }
     }
 
@@ -524,7 +524,7 @@ data:
     # Need to depreacte 
     composite {
         search {
-            url : "http://search-service.knowlg.svc.cluster.local:9000/v3/search"
+            url : "http://search-service.dev.svc.cluster.local:9000/v3/search"
         }
     }
 
@@ -554,7 +554,7 @@ data:
     # DIAL Link Config
     dial_service {
         api {
-            base_url : "http://dial-service.knowlg.svc.cluster.local:9000"
+            base_url : "http://dial-service.dev.svc.cluster.local:9000"
             auth_key : ""
             search : "/dialcode/v3/search"
             generate : "/dialcode/v3/generate"
@@ -659,9 +659,9 @@ data:
 
     # Need to depreacte 
     #Collection CSV
-    sunbird_dialcode_search_api="http://dial-service.knowlg.svc.cluster.local:9000/dialcode/v3/list"
-    framework_read_api_url="http://localhost:8080/learning-service/framework/v3/read"
-    sunbird_link_dial_code_api="http://content-service.knowlg.svc.cluster.local:9000/collection/v4/dialcode/link"
+    sunbird_dialcode_search_api="http://dial-service.dev.svc.cluster.local:9000/dialcode/v3/list"
+    framework_read_api_url="http://learning-service:8080/learning-service/framework/v3/read"
+    sunbird_link_dial_code_api="http://content-service.dev.svc.cluster.local:9000/collection/v4/dialcode/link"
 
     # Need to depreacte 
     collection {
@@ -694,12 +694,12 @@ data:
         }
     }
 
-    plugin.media.base.url="https://dev.knowlg.sunbird.org"
+    plugin.media.base.url= "https://{{ .Values.domain}}"
 
     cloudstorage {
-      metadata.replace_absolute_path=true
-      relative_path_prefix="{{ .Values.cloudstorage_relative_path_prefix_content }}"
-      metadata.list="{{ .Values.cloudstorage_metadata_list }}"
-      read_base_path="{{ .Values.cloudstorage_read_base_path }}"
-      write_base_path="{{ .Values.cloudstorage_write_base_path }}"
+        metadata.replace_absolute_path=true
+        relative_path_prefix=CONTENT_STORAGE_BASE_PATH
+        metadata.list={{ .Values.cloudstorage_metadata_list | toJson | }}
+        read_base_path="{{ .Values.cloudstorage_read_base_path }}" 
+        write_base_path={{ .Values.cloudstorage_write_base_path | toJson }}
     }
