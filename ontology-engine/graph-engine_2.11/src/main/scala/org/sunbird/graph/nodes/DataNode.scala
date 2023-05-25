@@ -16,6 +16,7 @@ import org.sunbird.parseq.Task
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
 
@@ -54,13 +55,17 @@ object DataNode {
     @throws[Exception]
     def read(request: Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Node] = {
         DefinitionNode.getNode(request).map(node => {
+          val isPrivate = request.getRequest.get("isPrivate").asInstanceOf[String] match {
+            case "true" => true
+            case _ => false
+          }
             val schema = node.getObjectType.toLowerCase.replace("image", "")
             val objectType : String = request.getContext.get("objectType").asInstanceOf[String]
             request.getContext.put("schemaName", schema)
             val fields: List[String] = Optional.ofNullable(request.get("fields").asInstanceOf[util.List[String]]).orElse(new util.ArrayList[String]()).toList
             val extPropNameList = DefinitionNode.getExternalProps(request.getContext.get("graph_id").asInstanceOf[String], request.getContext.get("version").asInstanceOf[String], schema)
             if (CollectionUtils.isNotEmpty(extPropNameList) && null != fields && fields.exists(field => extPropNameList.contains(field)))
-                populateExternalProperties(fields, node, request, extPropNameList)
+                populateExternalProperties(fields, node, request, extPropNameList,isPrivate)
             else
                 Future(node)
         }).flatMap(f => f) recoverWith {
@@ -136,15 +141,32 @@ object DataNode {
         }
     }
 
-    private def populateExternalProperties(fields: List[String], node: Node, request: Request, externalProps: List[String])(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
+    private def populateExternalProperties(fields: List[String], node: Node, request: Request, externalProps: List[String], isPrivate: Boolean)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
         if(StringUtils.equalsIgnoreCase(request.get("mode").asInstanceOf[String], "edit"))
             request.put("identifier", node.getIdentifier)
         val externalPropsResponse = oec.graphService.readExternalProps(request, externalProps.filter(prop => fields.contains(prop)))
         externalPropsResponse.map(response => {
+          val serverEvaluable = node.getMetadata.get("serverEvaluable").asInstanceOf[Boolean]
+          println("visibilityPrivate",isPrivate)
+          if (serverEvaluable && isPrivate) {
+            val externalData = Optional.ofNullable(response.get(node.getIdentifier).asInstanceOf[util.Map[String, AnyRef]]).orElse(new util.HashMap[String, AnyRef]())
+            val externalDataWithoutEditor = externalData.filterNot { case (key, _) => key == "editorState" }
+            val responseDeclaration = response.get("responseDeclaration") match {
+              case Some(map: Map[_, _]) => map.asInstanceOf[Map[String, AnyRef]].filterNot { case (key, _) => key == "correctResponse" }
+              case _ => new mutable.HashMap[String, AnyRef]()
+            }
+            val externalDataWithoutCorrectResponse = externalDataWithoutEditor + ("responseDeclaration" -> responseDeclaration)
+            node.getMetadata.putAll(externalDataWithoutCorrectResponse)
+            //node.getMetadata.putAll(response.getResult)
+            Future {
+              node
+            }
+          } else {
             node.getMetadata.putAll(response.getResult)
             Future {
-                node
+              node
             }
+          }
         }).flatMap(f => f)
     }
 
@@ -271,12 +293,16 @@ object DataNode {
   def search(request: Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[List[Node]] = {
     list(request, Some(request.getObjectType)).map(nodeList => {
       validateNodeList(request, nodeList)
+      val isPrivate = request.getContext.get("isPrivate").asInstanceOf[String] match {
+        case "true" => true
+        case _ => false
+      }
       val fields: List[String] = Optional.ofNullable(request.get("fields").asInstanceOf[util.List[String]]).orElse(new util.ArrayList[String]()).toList
       val extPropNameList = DefinitionNode.getExternalProps(request.graphId, request.getContext.get("version").asInstanceOf[String], request.getContext().get("schemaName").asInstanceOf[String])
       if (CollectionUtils.isEmpty(fields) && CollectionUtils.isNotEmpty(extPropNameList))
-        populateExternalProperties(nodeList.asScala.toList, extPropNameList, request, extPropNameList)
+        populateExternalProperties(nodeList.asScala.toList, extPropNameList, request, extPropNameList,isPrivate)
       else if (CollectionUtils.isNotEmpty(extPropNameList) && fields.exists(field => extPropNameList.contains(field)))
-        populateExternalProperties(nodeList.asScala.toList, fields, request, extPropNameList)
+        populateExternalProperties(nodeList.asScala.toList, fields, request, extPropNameList,isPrivate)
       else
         Future(nodeList.asScala.toList)
     }).flatMap(f => f) recoverWith {
@@ -284,13 +310,25 @@ object DataNode {
     }
   }
 
-  private def populateExternalProperties(nodes: List[Node], fields: List[String], request: Request, externalProps: List[String])(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[List[Node]] = {
+  private def populateExternalProperties(nodes: List[Node], fields: List[String], request: Request, externalProps: List[String],isPrivate: Boolean)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[List[Node]] = {
     request.put("identifiers", nodes.map(node => node.getIdentifier))
     val externalPropsResponse = oec.graphService.readExternalProps(request, externalProps.filter(prop => fields.contains(prop)))
     externalPropsResponse.map(response => {
       nodes.foreach(node => {
-        val externalData = Optional.ofNullable(response.get(node.getIdentifier).asInstanceOf[util.Map[String, AnyRef]]).orElse(new util.HashMap[String, AnyRef]())
-        node.getMetadata.putAll(externalData)
+        val serverEvaluable = node.getMetadata.get("serverEvaluable").asInstanceOf[Boolean]
+        if (serverEvaluable && !isPrivate) {
+          val externalData = Optional.ofNullable(response.get(node.getIdentifier).asInstanceOf[util.Map[String, AnyRef]]).orElse(new util.HashMap[String, AnyRef]())
+          val externalDataWithoutEditor = externalData.filterNot { case (key, _) => key == "editorState" }
+          val responseDeclaration = response.get("responseDeclaration") match {
+            case Some(map: Map[_, _]) => map.asInstanceOf[Map[String, AnyRef]].filterNot { case (key, _) => key == "correctResponse" }
+            case _ => new mutable.HashMap[String, AnyRef]()
+          }
+          val externalDataWithoutCorrectResponse = externalDataWithoutEditor + ("responseDeclaration" -> responseDeclaration)
+          node.getMetadata.putAll(externalDataWithoutCorrectResponse)
+        } else {
+          val externalData = Optional.ofNullable(response.get(node.getIdentifier).asInstanceOf[util.Map[String, AnyRef]]).orElse(new util.HashMap[String, AnyRef]())
+          node.getMetadata.putAll(externalData)
+        }
       })
       nodes
     })
@@ -322,5 +360,4 @@ object DataNode {
       !relations.contains(item._1)
     })
   }
-
 }

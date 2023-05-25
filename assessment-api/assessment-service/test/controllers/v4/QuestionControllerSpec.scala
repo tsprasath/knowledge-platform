@@ -76,4 +76,9 @@ class QuestionControllerSpec extends BaseSpec {
 		isOK(result)
 		status(result)(defaultAwaitTimeout) must equalTo(OK)
 	}
+	"listPrivate should list all the questions for given list of ids in the request" in {
+		val result = controller.privateList(None)(FakeRequest())
+		isOK(result)
+		status(result)(defaultAwaitTimeout) must equalTo(OK)
+	}
 }
