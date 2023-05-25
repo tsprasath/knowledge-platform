@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils
 import org.sunbird.`object`.importer.{ImportConfig, ImportManager}
 import org.sunbird.actor.core.BaseActor
 import org.sunbird.common.dto.{Request, Response, ResponseHandler}
+import org.sunbird.common.exception.ClientException
 import org.sunbird.common.{DateUtils, Platform}
 import org.sunbird.graph.OntologyEngineContext
 import org.sunbird.graph.nodes.DataNode
@@ -149,9 +150,17 @@ class QuestionActor @Inject()(implicit oec: OntologyEngineContext) extends BaseA
 		RequestUtil.validateListRequest(request)
 		val fields: util.List[String] = JavaConverters.seqAsJavaListConverter(request.get("fields").asInstanceOf[String].split(",").filter(field => StringUtils.isNotBlank(field) && !StringUtils.equalsIgnoreCase(field, "null"))).asJava
 		request.getRequest.put("fields", fields)
-		DataNode.searchPrivate(request).map(nodeList => {
+		request.getContext.put("serverEvaluable","true")
+		if (StringUtils.isBlank(request.getRequest.getOrDefault("channel", "").asInstanceOf[String])) throw new ClientException("ERR_INVALID_CHANNEL", "Please Provide Channel!")
+		DataNode.search(request).map(nodeList => {
 			val questionList = nodeList.map(node => {
-				NodeUtil.serialize(node, fields, node.getObjectType.toLowerCase.replace("Image", ""), request.getContext.get("version").asInstanceOf[String])
+				val metadata: util.Map[String, AnyRef] = NodeUtil.serialize(node, fields, node.getObjectType.toLowerCase.replace("Image", ""), request.getContext.get("version").asInstanceOf[String])
+				metadata.put("identifier", node.getIdentifier.replace(".img", ""))
+				if (StringUtils.equalsIgnoreCase(metadata.getOrDefault("channel", "").asInstanceOf[String], request.getRequest.getOrDefault("channel", "").asInstanceOf[String])) {
+					metadata
+				} else {
+					throw new ClientException("ERR_ACCESS_DENIED", "Channel id is not matched")
+				}
 			}).asJava
 			ResponseHandler.OK.put("questions", questionList).put("count", questionList.size)
 		})
