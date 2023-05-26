@@ -73,7 +73,6 @@ object DataNode {
         }
     }
 
-
     @throws[Exception]
     def list(request: Request, objectType: Option[String] = None)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[util.List[Node]] = {
         val identifiers:util.List[String] = request.get("identifiers").asInstanceOf[util.List[String]]
@@ -148,7 +147,7 @@ object DataNode {
         externalPropsResponse.map(response => {
           val serverEvaluable = node.getMetadata.get("serverEvaluable").asInstanceOf[Boolean]
           println("visibilityPrivate",isPrivate)
-          if (serverEvaluable && isPrivate) {
+          if (serverEvaluable && !isPrivate) {
             val externalData = Optional.ofNullable(response.get(node.getIdentifier).asInstanceOf[util.Map[String, AnyRef]]).orElse(new util.HashMap[String, AnyRef]())
             val externalDataWithoutEditor = externalData.filterNot { case (key, _) => key == "editorState" }
             val responseDeclaration = response.get("responseDeclaration") match {
