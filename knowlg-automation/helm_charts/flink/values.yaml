@@ -42,7 +42,7 @@ azure_account: ""
 azure_secret: ""
 flink_container_name: ""
 cloud_storage_flink_bucketname: flink-state-backend
-cloud_storage_content_bucketname: sunbird-content-dev
+cloud_storage_content_bucketname: sunbird-contents-dev
 cloud_storage_dial_bucketname: dial
 
 kafka_host: kafka.dev.svc.cluster.local
