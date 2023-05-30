@@ -21,7 +21,7 @@ data:
       output.system.event.topic = "dev.system.events"
     }
     job {
-      env = "local"
+      env = "dev"
       enable.distributed.checkpointing = false
       statebackend {
         blob {
@@ -31,7 +31,7 @@ data:
             checkpointing.dir = "checkpoint"
           }
         }
-        base.url = "wasbs://"${job.statebackend.blob.storage.container}"@"${job.statebackend.blob.storage.account}"/"${job.statebackend.blob.storage.checkpointing.dir}      }
+        base.url = "wasbs://"${job.statebackend.blob.storage.container}"@"${job.statebackend.blob.storage.account}"/"${job.statebackend.blob.storage.checkpointing.dir} }
     }
     task {
       parallelism = 1
@@ -92,6 +92,10 @@ data:
            dialcodemetricsIndexer.parallelism = 1
         }
         compositesearch.index.name = "compositesearch"
+        compositesearch.index.name = "compositesearch"
+        dialcode.index.name = "dialcode"
+        dailcodemetrics.index.name = "dialcodemetrics"
+        restrict.metadata.objectTypes = []
         nested.fields = ["badgeAssertions", "targets", "badgeAssociations", "plugins", "me_totalTimeSpent", "me_totalPlaySessionCount", "me_totalTimeSpentInSec", "batches", "trackable", "credentials", "discussionForum", "provider", "osMetadata", "actions"]
         schema.definition_cache.expiry = 14400
         restrict {
@@ -143,27 +147,19 @@ data:
     }
 
     schema {
-      basePath = "https://{{ .Values.cloud_storage_key }}.core.windows.net/sunbird-content-dev/schemas/local"
+      basePath = "https://{{ .Values.cloud_storage_key }}.blob.core.windows.net/sunbird-content-dev/schemas/local"
     }
 
     channel.default = "org.sunbird"
-
+  
   flink-conf: |+
     jobmanager.memory.flink.size: 1024m
     taskmanager.memory.flink.size: 1024m
     taskmanager.numberOfTaskSlots: 1
-    jobManager.numberOfTaskSlots: 1
     parallelism.default: 1
     jobmanager.execution.failover-strategy: region
     taskmanager.memory.network.fraction: 0.1
-    scheduler-mode: reactive
-    heartbeat.timeout: 8000
-    heartbeat.interval: 5000
-    taskmanager.memory.process.size: 1700m
-    jobmanager.memory.process.size: 1600m
-    # classloader.resolve-order: "parent-first"
-    # state.savepoints.dir: file:///tmp
-  
+
   {{- end }}
 
   {{ if eq .Release.Name "asset-enrichment" }}
