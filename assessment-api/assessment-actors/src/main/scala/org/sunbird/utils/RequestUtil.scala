@@ -6,9 +6,13 @@ import org.sunbird.common.exception.{ClientException, ErrorCodes}
 import org.sunbird.graph.OntologyEngineContext
 import org.sunbird.graph.schema.DefinitionNode
 
+import java.util.Base64
 import scala.concurrent.ExecutionContext
 import scala.collection.JavaConversions._
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
 
+import java.nio.charset.StandardCharsets
 object RequestUtil {
 
 	private val SYSTEM_UPDATE_ALLOWED_CONTENT_STATUS = List("Live", "Unlisted")
@@ -39,5 +43,13 @@ object RequestUtil {
 
 		if (request.get("identifiers").asInstanceOf[java.util.List[String]].length > questionListLimit)
 			throw new ClientException(ErrorCodes.ERR_BAD_REQUEST.name(), "Request contains more than the permissible limit of identifier: 20.")
+	}
+
+	// Draft sample JWT decode which will be replaced with other version of code Start
+	private val secret: String = Platform.getString("secret.key", "Tarento")
+
+	def jwtPayload(token: String): String = {
+		JWT.require(Algorithm.HMAC256(secret)).build().verify(token)
+		new String(Base64.getUrlDecoder.decode(JWT.decode(token).getPayload), StandardCharsets.UTF_8)
 	}
 }
