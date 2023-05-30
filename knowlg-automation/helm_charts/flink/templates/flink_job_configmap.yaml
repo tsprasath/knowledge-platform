@@ -612,7 +612,7 @@ data:
     }
 
     compositesearch.index.name = "compositesearch"
-    search.document.tybase-config: |+pe = "cs"
+    search.document.type = "cs"
     enableDIALContextUpdate = "Yes"
 
     cloud_storage_type="{{ .Values.cloud_service_provider }}"
