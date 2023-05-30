@@ -21,12 +21,10 @@ import com.mashape.unirest.http.Unirest
 import org.apache.commons.collections4.{CollectionUtils, MapUtils}
 import org.sunbird.graph.OntologyEngineContext
 import org.sunbird.telemetry.logger.TelemetryManager
-import org.sunbird.utils.{HierarchyConstants, JwtGenerator}
-import org.sunbird.utils.Constants
+import org.sunbird.utils.{Constants, GsonUtil, HierarchyConstants, JwtGenerator, JwtUtils, KeyData, KeyManager}
 
 import scala.util.Random
-import scala.collection.JavaConverters._
-import scala.util.Try
+import scala.collection.mutable
 
 object HierarchyManager {
 
@@ -38,15 +36,16 @@ object HierarchyManager {
     val ASSESSMENT_OBJECT_TYPES = List("Question", "QuestionSet")
 
     val keyTobeRemoved = {
-        if(Platform.config.hasPath("content.hierarchy.removed_props_for_leafNodes"))
+        if (Platform.config.hasPath("content.hierarchy.removed_props_for_leafNodes"))
             Platform.config.getStringList("content.hierarchy.removed_props_for_leafNodes")
         else
-            java.util.Arrays.asList("collections","children","usedByContent","item_sets","methods","libraries","editorState")
+            java.util.Arrays.asList("collections", "children", "usedByContent", "item_sets", "methods", "libraries", "editorState")
     }
 
-    val externalKeys: java.util.List[String] = if(Platform.config.hasPath("questionset.hierarchy.remove_external_props")) Platform.config.getStringList("questionset.hierarchy.remove_external_props")
-    else List("hierarchy","outcomeDeclaration").asJava
-    
+    val externalKeys: java.util.List[String] = if (Platform.config.hasPath("questionset.hierarchy.remove_external_props")) Platform.config.getStringList("questionset.hierarchy.remove_external_props")
+    else List("hierarchy", "outcomeDeclaration").asJava
+
+    val keyManager = new KeyManager(Platform.getString("am.admin.api.jwt.basepath","/home/anilkumar/jwtkeys/"), Platform.getString("am.admin.api.jwt.keyprefix","device"), 1)
     @throws[Exception]
     def addLeafNodesToHierarchy(request:Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
         validateRequest(request, "add")
@@ -154,9 +153,9 @@ object HierarchyManager {
     }
 
     @throws[Exception]
-    def getHierarchy(request : Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
+    def getHierarchy(request: Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
         val mode = request.get("mode").asInstanceOf[String]
-        if(StringUtils.isNotEmpty(mode) && mode.equals("edit"))
+        if (StringUtils.isNotEmpty(mode) && mode.equals("edit"))
             getUnPublishedHierarchy(request)
         else
             getPublishedHierarchy(request)
@@ -217,29 +216,113 @@ object HierarchyManager {
 
     @throws[Exception]
     def getPublishedHierarchy(request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Response] = {
-        val redisHierarchy = if(Platform.getBoolean("questionset.cache.enable", false)) RedisCache.get(hierarchyPrefix + request.get("rootId")) else ""
+        val redisHierarchy = if (Platform.getBoolean("questionset.cache.enable", false)) RedisCache.get(hierarchyPrefix + request.get("rootId")) else ""
 
         val hierarchyFuture = if (StringUtils.isNotEmpty(redisHierarchy)) {
-            Future(mapAsJavaMap(Map("questionSet" -> JsonUtils.deserialize(redisHierarchy, classOf[java.util.Map[String, AnyRef]]))))
+            Future(mapAsJavaMap(Map(Constants.QUESTIONSET -> JsonUtils.deserialize(redisHierarchy, classOf[java.util.Map[String, AnyRef]]))))
         } else getCassandraHierarchy(request)
         hierarchyFuture.map(result => {
             if (!result.isEmpty) {
                 val bookmarkId = request.get("bookmarkId").asInstanceOf[String]
-                val rootHierarchy  = result.get("questionSet").asInstanceOf[util.Map[String, AnyRef]]
+                val rootHierarchy = result.get(Constants.QUESTIONSET).asInstanceOf[util.Map[String, AnyRef]]
                 if (StringUtils.isEmpty(bookmarkId)) {
-                    ResponseHandler.OK.put("questionSet", rootHierarchy)
+                    if (request.get(Constants.SERVEREVALUABLE).asInstanceOf[String].equalsIgnoreCase(Constants.TRUE)) {
+                        val mutableRootHierarchy = mutable.Map[String, AnyRef](rootHierarchy.asScala.toSeq: _*)
+                        val childrenList = mutableRootHierarchy
+                          .getOrElse(Constants.CHILDREN, new util.ArrayList[java.util.Map[String, AnyRef]])
+                          .asInstanceOf[util.ArrayList[java.util.Map[String, AnyRef]]]
+                        val maxQuestions = Option(childrenList.get(0)).flatMap(child => Option(child.get(Constants.MAXQUESTIONS)).map(_.asInstanceOf[Int])).getOrElse(0)
+                        val updatedChildrenList = if (maxQuestions > 0) {
+                            randomization(childrenList, maxQuestions)
+                        } else {
+                            childrenList
+                        }
+                        val nestedChildrenIdentifiers = getNestedChildrenIdentifiers(updatedChildrenList)
+                        val mergedMap: util.Map[String, String] = createMergedMap(request, nestedChildrenIdentifiers)
+                        val userMapJson = JsonUtils.serialize(mergedMap)
+                        val jwtToken = generateJwtToken(userMapJson)
+                        mutableRootHierarchy.put(Constants.IDENTIFIER, request.get(Constants.ROOTID))
+                        mutableRootHierarchy.put(Constants.QUESTIONSETTOKEN, jwtToken)
+                        mutableRootHierarchy.put(Constants.CHILDREN,updatedChildrenList)
+                        ResponseHandler.OK.put(Constants.QUESTIONSET, mutableRootHierarchy.asJava)
+                    } else {
+                        ResponseHandler.OK.put(Constants.QUESTIONSET, rootHierarchy)
+                    }
                 } else {
                     val children = rootHierarchy.getOrElse("children", new util.ArrayList[util.Map[String, AnyRef]]()).asInstanceOf[util.List[util.Map[String, AnyRef]]]
                     val bookmarkHierarchy = filterBookmarkHierarchy(children, bookmarkId)
                     if (MapUtils.isEmpty(bookmarkHierarchy)) {
                         ResponseHandler.ERROR(ResponseCode.RESOURCE_NOT_FOUND, ResponseCode.RESOURCE_NOT_FOUND.name(), "bookmarkId " + bookmarkId + " does not exist")
                     } else {
-                        ResponseHandler.OK.put("questionSet", bookmarkHierarchy)
+                        ResponseHandler.OK.put(Constants.QUESTIONSET, bookmarkHierarchy)
                     }
                 }
-            } else
+            } else {
                 ResponseHandler.ERROR(ResponseCode.RESOURCE_NOT_FOUND, ResponseCode.RESOURCE_NOT_FOUND.name(), "rootId " + request.get("rootId") + " does not exist")
+            }
         })
+    }
+
+    private def randomization(childrenList: util.ArrayList[java.util.Map[String, AnyRef]], maxQuestions: Int): util.ArrayList[java.util.Map[String, AnyRef]] = {
+        val updatedChildrenList = new util.ArrayList[java.util.Map[String, AnyRef]]()
+
+        childrenList.asScala.foreach(child => {
+            val nestedChildren = child
+              .getOrDefault(Constants.CHILDREN, new util.ArrayList[java.util.Map[String, AnyRef]])
+              .asInstanceOf[util.ArrayList[java.util.Map[String, AnyRef]]]
+
+            val shuffledChildren = Random.shuffle(nestedChildren.asScala).take(maxQuestions).asJava
+
+            val updatedChild = new util.HashMap[String, AnyRef](child)
+            updatedChild.put(Constants.CHILDREN, shuffledChildren)
+
+            updatedChildrenList.add(updatedChild)
+        })
+
+        updatedChildrenList
+    }
+
+
+    private def getNestedChildrenIdentifiers(childrenList: util.ArrayList[java.util.Map[String, AnyRef]]): String = {
+        val javaChildrenList: java.util.List[java.util.Map[String, AnyRef]] = childrenList.map(map => mapAsJavaMap(map)).asJava
+        javaChildrenList.asScala.flatMap { child =>
+            val nestedChildren = child
+              .getOrDefault(Constants.CHILDREN, new util.ArrayList[java.util.Map[String, AnyRef]])
+              .asInstanceOf[util.List[java.util.Map[String, AnyRef]]]
+              .asScala
+              .toList
+              .asInstanceOf[Seq[java.util.Map[String, AnyRef]]]
+            val javaNestedChildren = JavaConverters.seqAsJavaListConverter(nestedChildren).asJava
+            javaNestedChildren.asScala.map(_.get(Constants.IDENTIFIER).asInstanceOf[String])
+        }.mkString(",")
+    }
+
+    private def createMergedMap(request: Request, nestedChildrenIdentifiers: String): util.Map[String, String] = {
+        val questionMap: util.HashMap[String, String] = new util.HashMap[String, String]()
+        val userMap: util.Map[String, String] = new util.HashMap[String, String]()
+        val mergedMap: util.Map[String, String] = new util.HashMap[String, String]()
+
+        questionMap.put(Constants.QUESTIONLIST, nestedChildrenIdentifiers)
+        userMap.put(Constants.CONTENTID, request.get(Constants.ROOTID).asInstanceOf[String])
+        userMap.put(Constants.COLLECTIONID, request.get(Constants.COLLECTIONID).asInstanceOf[String])
+        userMap.put(Constants.USERID, request.get(Constants.USERID).asInstanceOf[String])
+        userMap.put(Constants.ATTEMPTID, request.get(Constants.ATTEMPTID).asInstanceOf[String])
+
+        mergedMap.putAll(userMap)
+        mergedMap.putAll(questionMap)
+
+        mergedMap
+    }
+
+    private def generateJwtToken(userMapJson: String): String = {
+        val headerOptions: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+        val keyData = keyManager.getRandomKey()
+        val id = keyData.getKeyId
+        val privateKey = keyData.getPrivateKey
+        headerOptions.put("type", "jwt")
+        headerOptions.put("alg", "RS256")
+        headerOptions.put("keyId", id)
+        JwtUtils.createRS256Token(userMapJson, privateKey, headerOptions)
     }
 
     def validateRequest(request: Request, operation: String)(implicit ec: ExecutionContext) = {
@@ -724,90 +807,5 @@ object HierarchyManager {
         })
         TelemetryManager.info(s"updated BranchingLogic for ${identifier} : ${updatedBranchingLogic}")
         updatedBranchingLogic
-    }
-
-    @throws[Exception]
-    def fetchQuestionSetHierarchy(request: Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
-        val rootNodeFuture = getRootNode(request)
-        rootNodeFuture.map(rootNode => {
-            if (StringUtils.equalsIgnoreCase(Constants.RETIRED, rootNode.getMetadata.getOrDefault(Constants.STATUS, "").asInstanceOf[String])) {
-                Future(ResponseHandler.ERROR(ResponseCode.RESOURCE_NOT_FOUND, ResponseCode.RESOURCE_NOT_FOUND.name(), Constants.ROOTID  + request.get(Constants.ROOTID) + "does not exist"))
-            }
-            val bookmarkId = request.get(Constants.BOOKMARKID).asInstanceOf[String]
-            var metadata: util.Map[String, AnyRef] = NodeUtil.serialize(rootNode, new util.ArrayList[String](), request.getContext.get(Constants.SCHEMANAME).asInstanceOf[String], request.getContext.get(Constants.VERSION).asInstanceOf[String])
-            val hierarchy = fetchHierarchy(request, rootNode.getIdentifier)
-            hierarchy.map(hierarchy => {
-                val children = hierarchy.getOrDefault(Constants.CHILDREN, new util.ArrayList[java.util.Map[String, AnyRef]]).asInstanceOf[util.ArrayList[java.util.Map[String, AnyRef]]]
-                val shouldShuffle = children.asScala.exists { child =>
-                   Option(child.get(Constants.SHUFFLE)).getOrElse(false).asInstanceOf[Boolean]
-                }
-                if (shouldShuffle) {
-                    val shuffledChildren = children.asScala.map { child =>
-                        val childChildren = child.getOrDefault(Constants.CHILDREN, new util.ArrayList[util.LinkedHashMap[String, Any]]).asInstanceOf[util.ArrayList[util.LinkedHashMap[String, Any]]]
-                        val shuffledChildChildren = Random.shuffle(childChildren.asScala).asJava
-                        child.put(Constants.CHILDREN, shuffledChildChildren)
-                        child
-                    }.asJava
-                    metadata.put(Constants.CHILDREN, shuffledChildren)
-                } else {
-                    metadata.put(Constants.CHILDREN, children)
-                }
-                val leafNodeIds = new util.ArrayList[String]()
-                fetchAllLeafNodes(children, leafNodeIds)
-                getLatestLeafNodes(leafNodeIds).map(leafNodesMap => {
-                    updateLatestLeafNodes(children, leafNodesMap)
-                    val identifiers = extractIdentifiers(children)
-                    val userMap: util.Map[String, String] = new util.HashMap[String, String]()
-                    val questionMap: util.HashMap[String, Array[String]] = new util.HashMap[String, Array[String]]()
-                    userMap.put(Constants.CONTENTID, request.get(Constants.ROOTID).asInstanceOf[String])
-                    userMap.put(Constants.COLLECTIONID, request.get(Constants.COLLECTIONID).asInstanceOf[String])
-                    userMap.put(Constants.USERID, request.get(Constants.USERID).asInstanceOf[String])
-                    userMap.put(Constants.ATTEMPTID, request.get(Constants.ATTEMPTID).asInstanceOf[String])
-                    questionMap.put(Constants.QUESTIONLIST, identifiers)
-                    val token: String = JwtGenerator.generateToken(userMap.asScala.toMap, questionMap.asScala.toMap)
-                    metadata.put(Constants.IDENTIFIER, request.get(Constants.ROOTID))
-                    metadata.put(Constants.QUESTIONSETTOKEN, token)
-                    if (StringUtils.isNotEmpty(bookmarkId))
-                        metadata = filterBookmarkHierarchy(metadata.get(Constants.CHILDREN).asInstanceOf[util.List[util.Map[String, AnyRef]]], bookmarkId)
-                    if (MapUtils.isEmpty(metadata)) {
-                        ResponseHandler.ERROR(ResponseCode.RESOURCE_NOT_FOUND, ResponseCode.RESOURCE_NOT_FOUND.name(), Constants.BOOKMARKID  + bookmarkId + " does not exist")
-                    } else {
-                        ResponseHandler.OK.put(Constants.QUESTIONSET, metadata)
-                    }
-                })
-            }).flatMap(f => f)
-        }).flatMap(f => f) recoverWith { case e: ResourceNotFoundException => {
-            val searchResponse = searchRootIdInElasticSearch(request.get(Constants.ROOTID).asInstanceOf[String])
-            searchResponse.map(rootHierarchy => {
-                if (!rootHierarchy.isEmpty && StringUtils.isNotEmpty(rootHierarchy.asInstanceOf[util.HashMap[String, AnyRef]].get(Constants.IDENTIFIER).asInstanceOf[String])) {
-                    val unPublishedBookmarkHierarchy = getUnpublishedBookmarkHierarchy(request, rootHierarchy.asInstanceOf[util.HashMap[String, AnyRef]].get(Constants.IDENTIFIER).asInstanceOf[String])
-                    unPublishedBookmarkHierarchy.map(hierarchy => {
-                        if (!hierarchy.isEmpty) {
-                            val children = hierarchy.getOrDefault(Constants.CHILDREN, new util.ArrayList[java.util.Map[String, AnyRef]]).asInstanceOf[util.ArrayList[java.util.Map[String, AnyRef]]]
-                            val leafNodeIds = new util.ArrayList[String]()
-                            fetchAllLeafNodes(children, leafNodeIds)
-                            getLatestLeafNodes(leafNodeIds).map(leafNodesMap => {
-                                updateLatestLeafNodes(children, leafNodesMap)
-                                hierarchy.put(Constants.CHILDREN, children)
-                            })
-                            ResponseHandler.OK.put(Constants.QUESTIONSET, hierarchy)
-                        } else
-                            ResponseHandler.ERROR(ResponseCode.RESOURCE_NOT_FOUND, ResponseCode.RESOURCE_NOT_FOUND.name(), Constants.ROOTID  + request.get(Constants.ROOTID) + " does not exist")
-                    })
-                } else {
-                    Future(ResponseHandler.ERROR(ResponseCode.RESOURCE_NOT_FOUND, ResponseCode.RESOURCE_NOT_FOUND.name(), Constants.ROOTID + request.get(Constants.ROOTID) + " does not exist"))
-                }
-            }).flatMap(f => f)
-        }
-        }
-    }
-
-    def extractIdentifiers(children: util.List[util.Map[String, AnyRef]]): Array[String] = {
-        children.asScala.flatMap { child =>
-            val identifier = Option(child.get(Constants.IDENTIFIER)).map(_.asInstanceOf[String])
-            val nestedChildren = Option(child.get(Constants.CHILDREN)).map(_.asInstanceOf[util.List[util.Map[String, AnyRef]]])
-            val nestedIdentifiers = nestedChildren.map(extractIdentifiers).getOrElse(Array.empty[String])
-            identifier ++ nestedIdentifiers
-        }.toArray
     }
 }

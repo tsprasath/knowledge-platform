@@ -19,5 +19,8 @@ object Constants {
   val QUESTIONSET: String = "questionSet"
   val SHUFFLE: String = "shuffle";
   val TIMESTAMP: String = "timestamp"
+  val MAXQUESTIONS: String = "maxQuestions"
+  val SERVEREVALUABLE: String = "serverEvaluable"
+  val TRUE: String = "true"
 
 }
