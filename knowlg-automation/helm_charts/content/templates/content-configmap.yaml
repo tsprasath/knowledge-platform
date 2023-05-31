@@ -528,11 +528,11 @@ data:
         }
     }
 
-    cloud_storage_type: "azure"
-    cloud_storage_key: ""
-    cloud_storage_secret: ""
+    cloud_storage_type: "{{ .Values.cloud_service_provider }}"
+    cloud_storage_key: "{{ .Values.cloud_storage_key }}"
+    cloud_storage_secret: "{{ .Values.cloud_storage_secret }}"
     cloud_storage_endpoint: ""
-    cloud_storage_container: ""
+    cloud_storage_container: "{{ .Values.cloud_public_storage_container }}"
 
     # Google Drive APIKEY
     learning_content_drive_apiKey = ""
@@ -546,8 +546,8 @@ data:
     kafka {
         urls : "{{ .Values.kafka_connection }}"
         topic.send.enable : true
-        topics.instruction : ""
-        publish.request.topic : ""
+        topics.instruction : "learning.job.request"
+        publish.request.topic : "dev.publish.job.request"
     }
 
     # Need to depreacte 
@@ -572,7 +572,7 @@ data:
     # Content Import API Config
     import {
         request_size_limit : 1000
-        output_topic_name : "sunbirdstaging.knowlg.auto.creation.job.request"
+        output_topic_name : "auto.creation.job.request"
         required_props : ["name","code","mimeType","primaryCategory","artifactUrl","framework"]
         remove_props : ["downloadUrl","variants","previewUrl","streamingUrl","itemSets","level1Name","level1Concept","level2Name","level2Concept","level3Name","level3Concept","me_totalPlaySessionCount","me_totalTimeSpentInSec","me_totalSessionsCount","me_totalTimespent","me_totalInteractions","me_creationSessions","me_creationTimespent","me_averageInteractionsPerMin","me_averageSessionsPerDevice","me_totalDevices","me_averageTimespentPerSession","me_averageRating","me_totalDownloads","me_totalSideloads","me_totalRatings","me_totalComments","me_totalDialcode","me_totalDialcodeLinkedToContent","me_totalDialcodeAttached","me_hierarchyLevel","origin","originData","contentPolicyCheck","questions"]
     }
@@ -700,6 +700,6 @@ data:
         metadata.replace_absolute_path=true
         relative_path_prefix=CONTENT_STORAGE_BASE_PATH
         metadata.list={{ .Values.cloudstorage_metadata_list | toJson | }}
-        read_base_path="{{ .Values.cloudstorage_read_base_path }}" 
-        write_base_path={{ .Values.cloudstorage_write_base_path | toJson }}
+        read_base_path="https://{{ .Values.cloud_storage_key }}.blob.core.windows.net"  
+        write_base_path=["https://{{ .Values.cloud_storage_key }}.blob.core.windows.net","https://{{ .Values.cloud_storage_key }}.blob.core.windows.net"]
     }
