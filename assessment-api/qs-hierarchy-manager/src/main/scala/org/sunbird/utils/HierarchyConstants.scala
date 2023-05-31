@@ -57,4 +57,20 @@ object HierarchyConstants {
     val SOURCE: String = "source"
     val PRE_CONDITION: String = "preCondition"
     val QUESTION_VISIBILITY: List[String] = List("Default", "Parent")
+    val CONTENTID: String = "contentID"
+    val COLLECTIONID: String = "collectionID"
+    val USERID: String = "userID"
+    val ATTEMPTID: String = "attemptID"
+    val QUESTIONLIST: String = "questionList"
+    val ROOTID: String = "rootId"
+    val RETIRED: String = "Retired"
+    val BOOKMARKID: String = "bookmarkId"
+    val SCHEMANAME: String = "schemaName"
+    val QUESTIONSETTOKEN: String = "questionSetToken"
+    val QUESTIONSET: String = "questionSet"
+    val SHUFFLE: String = "shuffle";
+    val TIMESTAMP: String = "timestamp"
+    val MAXQUESTIONS: String = "maxQuestions"
+    val SERVEREVALUABLE: String = "serverEvaluable"
+    val TRUE: String = "true"
 }
