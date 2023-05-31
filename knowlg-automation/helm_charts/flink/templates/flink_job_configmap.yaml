@@ -626,7 +626,7 @@ data:
       metadata.list=["appIcon","posterImage","artifactUrl","downloadUrl","variants","previewUrl","pdfUrl", "streamingUrl", "toc_url"]
       read_base_path="https://{{ .Values.cloud_storage_key }}.blob.core.windows.net"
       write_base_path=["https://{{ .Values.cloud_storage_key }}.blob.core.windows.net","https://{{ .Values.cloud_storage_key }}.blob.core.windows.net"]    }
-
+    }
     master.category.validation.enabled ="yes"
     service {
       print.basePath = kp_print_service_base_url # TODO check on this service
