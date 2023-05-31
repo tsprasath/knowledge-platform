@@ -35,7 +35,7 @@ object HierarchyManager {
     val statusList = List("Live", "Unlisted", "Flagged")
     val ASSESSMENT_OBJECT_TYPES = List("Question", "QuestionSet")
 
-    val keyManager = new KeyManager(Platform.getString("am.admin.api.jwt.basepath","/home/anilkumar/jwtkeys/"), Platform.getString("am.admin.api.jwt.keyprefix","device"), 1)
+    val keyManager = new KeyManager(Platform.getString("am.admin.api.jwt.basepath","./keys/"), Platform.getString("am.admin.api.jwt.keyprefix","device"), 1)
 
     val keyTobeRemoved = {
         if(Platform.config.hasPath("content.hierarchy.removed_props_for_leafNodes"))
@@ -325,6 +325,10 @@ def getPublishedHierarchy(request: Request)(implicit ec: ExecutionContext, oec: 
         headerOptions.put("keyId", id)
         JwtUtils.createRS256Token(userMapJson, privateKey, headerOptions)
     }
+     def verifyRS256Token(token: String)={
+        JwtUtils.verifyRS256Token(token, keyManager)
+    }
+
 
     def validateRequest(request: Request, operation: String)(implicit ec: ExecutionContext) = {
         val rootId = request.get("rootId").asInstanceOf[String]

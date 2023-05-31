@@ -45,3 +45,6 @@ POST      /questionset/v4/import                     controllers.v4.QuestionSetC
 PATCH     /questionset/v4/system/update/:identifier  controllers.v4.QuestionSetController.systemUpdate(identifier:String)
 POST      /questionset/v4/copy/:identifier           controllers.v4.QuestionSetController.copy(identifier:String, mode:Option[String], type:String?="deep")
 POST      /questionset/v4/hierarchy/:identifier      controllers.v4.QuestionSetController.getHierarchyRead(identifier:String, mode:Option[String])
+
+# QuestionValidate API's
+POST    /questionset/v4/assestment/validate     	 controllers.v4.QuestionSetAssessController.assessment

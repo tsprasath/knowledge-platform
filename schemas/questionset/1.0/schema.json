@@ -739,7 +739,7 @@
     "reviewStatus": {
       "type": "string"
     },
-    "evaluable": {
+    "serverEvaluable": {
       "type": "boolean",
       "default": false
     },
