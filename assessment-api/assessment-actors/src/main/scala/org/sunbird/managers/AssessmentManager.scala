@@ -1,18 +1,19 @@
 package org.sunbird.managers
 
-import java.util
+import com.mashape.unirest.http.Unirest
 
+import java.util
 import org.apache.commons.lang3.StringUtils
 import org.sunbird.common.{DateUtils, JsonUtils, Platform}
 import org.sunbird.common.dto.{Request, Response, ResponseHandler}
-import org.sunbird.common.exception.{ClientException, ResourceNotFoundException, ServerException}
+import org.sunbird.common.exception.{ClientException, ErrorCodes, ResourceNotFoundException, ServerException}
 import org.sunbird.graph.OntologyEngineContext
 import org.sunbird.graph.dac.model.{Node, Relation}
 import org.sunbird.graph.nodes.DataNode
 import org.sunbird.graph.utils.NodeUtil
 import org.sunbird.telemetry.logger.TelemetryManager
 import org.sunbird.telemetry.util.LogTelemetryEventUtil
-import org.sunbird.utils.RequestUtil
+import org.sunbird.utils.{AssessmentConstants, JavaJsonUtils, JwtUtils, RequestUtil}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.collection.JavaConversions._
@@ -54,6 +55,7 @@ object AssessmentManager {
 	def privateRead(request: Request, resName: String)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
 		val fields: util.List[String] = JavaConverters.seqAsJavaListConverter(request.get("fields").asInstanceOf[String].split(",").filter(field => StringUtils.isNotBlank(field) && !StringUtils.equalsIgnoreCase(field, "null"))).asJava
 		request.getRequest.put("fields", fields)
+		request.put("isPrivate", "true")
 		if (StringUtils.isBlank(request.getRequest.getOrDefault("channel", "").asInstanceOf[String])) throw new ClientException("ERR_INVALID_CHANNEL", "Please Provide Channel!")
 		DataNode.read(request).map(node => {
 			val metadata: util.Map[String, AnyRef] = NodeUtil.serialize(node, fields, node.getObjectType.toLowerCase.replace("Image", ""), request.getContext.get("version").asInstanceOf[String])
@@ -224,5 +226,103 @@ object AssessmentManager {
 
 	def createMapping(request: Request, str: String)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
 		oec.graphService.saveExternalProps(request)
+	}
+
+	val map = Map("userId" -> "userID", "attemptId" -> "attemptID")
+
+	def validateAssessRequest(req: Request) = {
+		val body = req.getRequest
+		val jwt = body.getOrDefault(AssessmentConstants.QUESTION_SET_TOKEN, "").asInstanceOf[String]
+		val payload = try {
+			val tuple= HierarchyManager.verifyRS256Token(jwt)
+			if(tuple._1 == false)
+				throw new ClientException(ErrorCodes.ERR_BAD_REQUEST.name(), "Token Authentication Failed")
+			tuple._2.get("data").asInstanceOf[String]
+					} catch {
+			case e: Exception => throw new ClientException(ErrorCodes.ERR_BAD_REQUEST.name(), "Token Authentication Failed")
+		}
+		val questToken = JavaJsonUtils.deserialize[java.util.Map[String, AnyRef]](payload)
+		val assessments = body.getOrDefault(AssessmentConstants.ASSESSMENTS, new util.ArrayList[util.Map[String, AnyRef]]).asInstanceOf[util.List[util.Map[String, AnyRef]]]
+		val courseMetaData = Option(assessments.get(0)).getOrElse(new util.HashMap[String, AnyRef])
+		val count = map.filter(key => StringUtils.equals(courseMetaData.get(key._1).asInstanceOf[String], questToken.get(key._2).asInstanceOf[String])).size
+		if (count != map.size)
+			throw new ClientException(ErrorCodes.ERR_BAD_REQUEST.name(), "Token Authentication Failed")
+		questToken.get(AssessmentConstants.QUESTION_LIST).asInstanceOf[String].split(",").asInstanceOf[Array[String]]
+	}
+
+	def questionList(fields: Array[String]): Response = {
+		val url: String = Platform.getString(AssessmentConstants.QUESTION_LIST_PRIVATE_URL_PROP, "")
+		val bdy = "{\"request\":{\"search\":{\"identifier\":" + JavaJsonUtils.serialize(fields) + "}}}"
+		val httpResponse = post(url, bdy)
+		if (200 != httpResponse.status) throw new ServerException("ERR_QUESTION_LIST_API_COMM", "Error communicating to question list api")
+		JsonUtils.deserialize(httpResponse.body, classOf[Response])
+	}
+
+	private case class HTTPResponse(status: Int, body: String) extends Serializable
+
+	private def post(url: String, requestBody: String, headers: Map[String, String] = Map[String, String]("Content-Type" -> "application/json")): HTTPResponse = {
+		val res = Unirest.post(url).headers(headers.asJava).body(requestBody).asString()
+		HTTPResponse(res.getStatus, res.getBody)
+	}
+
+	private def populateMultiCardinality(res: util.Map[String, AnyRef], edata: util.Map[String, AnyRef], maxScore: Integer) = {
+		val correctValue = getMap(res, AssessmentConstants.CORRECT_RESPONSE).getOrDefault(AssessmentConstants.VALUE, new util.ArrayList[Integer]).asInstanceOf[util.ArrayList[Integer]].flatMap(k => List(k)).sorted
+		val usrResponse = edata.getOrDefault(AssessmentConstants.RESVALUES, new util.ArrayList[util.ArrayList[util.Map[String, AnyRef]]]())
+			.asInstanceOf[util.ArrayList[util.ArrayList[util.Map[String, AnyRef]]]]
+			.flatMap(_.flatMap(res => List(res.getOrDefault(AssessmentConstants.VALUE, -1.asInstanceOf[Integer]).asInstanceOf[Integer]))).sorted
+		correctValue.equals(usrResponse) match {
+			case true => edata.put(AssessmentConstants.SCORE, maxScore)
+			case _ => {
+				var ttlScr = 0.0d
+				getListMap(res, AssessmentConstants.MAPPING).foreach(k => if (usrResponse.contains(k.getOrDefault(AssessmentConstants.RESPONSE, -1.asInstanceOf[Integer]).asInstanceOf[Integer]))
+					ttlScr += getMap(k, AssessmentConstants.OUTCOMES).get(AssessmentConstants.SCORE).asInstanceOf[Double])
+				edata.put(AssessmentConstants.SCORE, ttlScr.asInstanceOf[AnyRef])
+				if (ttlScr > 0) edata.put(AssessmentConstants.PASS, AssessmentConstants.YES) else edata.put(AssessmentConstants.PASS, AssessmentConstants.NO)
+			}
+		}
+	}
+
+	private def populateSingleCardinality(res: util.Map[String, AnyRef], edata: util.Map[String, AnyRef], maxScore: Integer): Unit = {
+		val correctValue = getMap(res, AssessmentConstants.CORRECT_RESPONSE).getOrDefault(AssessmentConstants.VALUE, new util.ArrayList[Integer]).asInstanceOf[String]
+		val usrResponse = getListMap(edata, AssessmentConstants.RESVALUES).get(0).getOrDefault(AssessmentConstants.VALUE, "").toString
+		StringUtils.equals(usrResponse, correctValue) match {
+			case true => {
+				edata.put(AssessmentConstants.SCORE, maxScore)
+				edata.put(AssessmentConstants.PASS, AssessmentConstants.YES)
+			}
+			case _ => {
+				edata.put(AssessmentConstants.SCORE, 0.asInstanceOf[Integer])
+				edata.put(AssessmentConstants.PASS, AssessmentConstants.NO)
+			}
+		}
+	}
+
+	def calculateScore(privateList: Response, assessments: util.List[util.Map[String, AnyRef]]): Unit = {
+		val answerMap: Map[String, AnyRef] = getListMap(privateList.getResult, AssessmentConstants.QUESTIONS)
+			.map { que => que.get(AssessmentConstants.IDENTIFIER).toString -> que.get(AssessmentConstants.RESPONSE_DECLARATION) }.toMap
+		assessments.foreach { k =>
+			getListMap(k, AssessmentConstants.EVENTS).toList.foreach { event =>
+				val edata = getMap(event, AssessmentConstants.EDATA)
+				val item = getMap(edata, AssessmentConstants.ITEM)
+				val identifier = item.getOrDefault(AssessmentConstants.ID, "").asInstanceOf[String]
+				if (!answerMap.contains(identifier))
+					throw new ClientException(ErrorCodes.ERR_BAD_REQUEST.name(), "Invalid Request")
+				val res = getMap(answerMap.get(identifier).asInstanceOf[Some[util.Map[String, AnyRef]]].x, AssessmentConstants.RESPONSE1)
+				val cardinality = res.getOrDefault(AssessmentConstants.CARDINALITY, "").asInstanceOf[String]
+				val maxScore = res.getOrDefault(AssessmentConstants.MAX_SCORE, 0.asInstanceOf[Integer]).asInstanceOf[Integer]
+				cardinality match {
+					case AssessmentConstants.MULTIPLE => populateMultiCardinality(res, edata, maxScore)
+					case _ => populateSingleCardinality(res, edata, maxScore)
+				}
+			}
+		}
+	}
+
+	private def getListMap(arg: util.Map[String, AnyRef], param: String) = {
+		arg.getOrDefault(param, new util.ArrayList[util.Map[String, AnyRef]]()).asInstanceOf[util.ArrayList[util.Map[String, AnyRef]]]
+	}
+
+	private def getMap(arg: util.Map[String, AnyRef], param: String) = {
+		arg.getOrDefault(param, new util.HashMap[String, AnyRef]()).asInstanceOf[util.Map[String, AnyRef]]
 	}
 }

@@ -142,8 +142,8 @@ object DataNode {
             request.put("identifier", node.getIdentifier)
         val externalPropsResponse = oec.graphService.readExternalProps(request, externalProps.filter(prop => fields.contains(prop)))
         externalPropsResponse.map(response => {
-          val serverEvaluable = node.getMetadata.get("serverEvaluable").asInstanceOf[Boolean]
-          if (serverEvaluable && !StringUtils.equals(request.getContext.get("isPrivate").asInstanceOf[String], "true")) {
+          val serverEvaluable = node.getMetadata.getOrDefault("serverEvaluable", "")
+          if (serverEvaluable.toString == "true" && !StringUtils.equals(request.get("isPrivate").asInstanceOf[String], "true")) {
             val externalData = Optional.ofNullable(response.get(node.getIdentifier).asInstanceOf[util.Map[String, AnyRef]]).orElse(new util.HashMap[String, AnyRef]())
             val externalDataWithoutEditor = externalData.filterNot { case (key, _) => key == "editorState" }
             val responseDeclaration = response.get("responseDeclaration") match {
@@ -306,9 +306,8 @@ object DataNode {
     val externalPropsResponse = oec.graphService.readExternalProps(request, externalProps.filter(prop => fields.contains(prop)))
     externalPropsResponse.map(response => {
       nodes.foreach(node => {
-        val serverEvaluable = node.getMetadata.get("serverEvaluable")
-        if (StringUtils.equals(serverEvaluable.asInstanceOf[String], "true")
-          && !StringUtils.equals(request.getContext.get("isPrivate").asInstanceOf[String], "true")) {
+        val serverEvaluable = node.getMetadata.getOrDefault("serverEvaluable", "")
+        if (serverEvaluable.toString == "true" && !StringUtils.equals(request.get("isPrivate").asInstanceOf[String], "true")) {
           val externalData = Optional.ofNullable(response.get(node.getIdentifier).asInstanceOf[util.Map[String, AnyRef]])
             .orElse(new util.HashMap[String, AnyRef]())
           val externalDataWithoutEditor = externalData.filterNot { case (key, _) => key == "editorState" }
