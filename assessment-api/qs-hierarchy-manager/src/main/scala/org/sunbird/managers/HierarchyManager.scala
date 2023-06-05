@@ -32,7 +32,7 @@ object HierarchyManager {
     val schemaVersion: String = "1.0"
     val imgSuffix: String = ".img"
     val hierarchyPrefix: String = "qs_hierarchy_"
-    val statusList = List("Live", "Unlisted", "Flagged","Draft")
+    val statusList = List("Live", "Unlisted", "Flagged")
     val ASSESSMENT_OBJECT_TYPES = List("Question", "QuestionSet")
 
     val keyManager = new KeyManager(Platform.getString("am.admin.api.jwt.basepath","./keys/"), Platform.getString("am.admin.api.jwt.keyprefix","device"), 1)
@@ -575,7 +575,7 @@ def getPublishedHierarchy(request: Request)(implicit ec: ExecutionContext, oec: 
         val hierarchy = fetchHierarchy(request, request.getRequest.get("rootId").asInstanceOf[String])
         hierarchy.map(hierarchy => {
             if (!hierarchy.isEmpty) {
-                if (StringUtils.isNotEmpty(hierarchy.getOrDefault("status", "Draft").asInstanceOf[String]) && statusList.contains(hierarchy.getOrDefault("status", "Draft").asInstanceOf[String])) {
+                if (StringUtils.isNotEmpty(hierarchy.getOrDefault("status", "").asInstanceOf[String]) && statusList.contains(hierarchy.getOrDefault("status", "").asInstanceOf[String])) {
                     val hierarchyMap = mapAsJavaMap(hierarchy)
                     rootHierarchy.put("questionSet", hierarchyMap)
                     RedisCache.set(hierarchyPrefix + request.get("rootId"), JsonUtils.serialize(hierarchyMap))
