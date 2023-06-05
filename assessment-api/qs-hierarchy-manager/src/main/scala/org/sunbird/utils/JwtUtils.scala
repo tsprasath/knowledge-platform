@@ -1,6 +1,7 @@
 package org.sunbird.utils
 
-import com.google.common.reflect.TypeToken
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.sunbird.managers.{KeyData, KeyManager}
 
 import java.nio.charset.StandardCharsets
@@ -11,6 +12,7 @@ import java.util.{Base64, HashMap, Map}
 object JwtUtils {
 
   private val SEPARATOR = "."
+  private val objectMapper: ObjectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
 
   def createRS256Token(key: String, privateKey: PrivateKey, headerOptions: Map[String, String]): String = {
     val tokenType = JWTokenType.RS256
@@ -25,14 +27,14 @@ object JwtUtils {
     if (headerOptions != null)
       headerData.putAll(headerOptions)
     headerData.put("alg", tokenType.tokenType)
-    encodeToBase64Uri(GsonUtil.toJson(headerData).getBytes)
+    encodeToBase64Uri(JsonUtil.toJson(headerData).getBytes)
   }
 
   private def createClaims(subject: String): String = {
     val payloadData = new HashMap[String, Any]()
     payloadData.put("data", subject)
     payloadData.put("iat", System.currentTimeMillis / 1000)
-    encodeToBase64Uri(GsonUtil.toJson(payloadData).getBytes)
+    encodeToBase64Uri(JsonUtil.toJson(payloadData).getBytes)
   }
 
   private def encodeToBase64Uri(data: Array[Byte]): String = {
@@ -64,7 +66,6 @@ object JwtUtils {
 
   def payload(encodedPayload: String): Map[String, Any] = {
     val decodedPayload = new String(Base64.getDecoder.decode(encodedPayload), StandardCharsets.UTF_8)
-    val gson = GsonUtil.getGson
-    gson.fromJson(decodedPayload, new TypeToken[Map[String, Any]]() {}.getType)
+    objectMapper.readValue(decodedPayload, classOf[Map[String, Any]])
   }
 }

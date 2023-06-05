@@ -119,7 +119,7 @@ class QuestionSetController @Inject()(@Named(ActorNames.QUESTION_SET_ACTOR) ques
 	}
 
 	def getHierarchy(identifier: String, mode: Option[String]) = {
-		HierarchyCommon(identifier, mode)
+		fetchHierarchy(identifier, mode)
 	}
 
 	def reject(identifier: String) = Action.async { implicit request =>
@@ -165,9 +165,9 @@ class QuestionSetController @Inject()(@Named(ActorNames.QUESTION_SET_ACTOR) ques
 	}
 
 	def getHierarchyRead(identifier: String, mode: Option[String]) = {
-		HierarchyCommon(identifier, mode, "true")
+		fetchHierarchy(identifier, mode, "true")
 	}
-	def HierarchyCommon(identifier: String, mode: Option[String], evaluable: String = "false") = Action.async { implicit request =>
+	def fetchHierarchy(identifier: String, mode: Option[String], evaluable: String = "false") = Action.async { implicit request =>
 		val headers = commonHeaders()
 		val body = requestBody()
 		val questionSet = body.getOrDefault("questionset", new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]];
