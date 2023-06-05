@@ -32,7 +32,7 @@ object HierarchyManager {
     val schemaVersion: String = "1.0"
     val imgSuffix: String = ".img"
     val hierarchyPrefix: String = "qs_hierarchy_"
-    val statusList = List("Live", "Unlisted", "Flagged")
+    val statusList = List("Live", "Unlisted", "Flagged","Draft")
     val ASSESSMENT_OBJECT_TYPES = List("Question", "QuestionSet")
 
     val keyManager = new KeyManager(Platform.getString("am.admin.api.jwt.basepath","./keys/"), Platform.getString("am.admin.api.jwt.keyprefix","device"), 1)
@@ -232,12 +232,15 @@ def getPublishedHierarchy(request: Request)(implicit ec: ExecutionContext, oec: 
                     val childrenList = mutableRootHierarchy
                       .getOrElse(HierarchyConstants.CHILDREN, new util.ArrayList[java.util.Map[String, AnyRef]])
                       .asInstanceOf[util.ArrayList[java.util.Map[String, AnyRef]]]
-                    val maxQuestions = Option(childrenList.get(0)).flatMap(child => Option(child.get(HierarchyConstants.MAXQUESTIONS)).map(_.asInstanceOf[Int])).getOrElse(0)
-                    val updatedChildrenList = if (maxQuestions > 0) {
-                        randomization(childrenList, maxQuestions)
-                    } else {
-                        childrenList
-                    }
+
+            val updatedChildrenList = childrenList.asScala.map(child => {
+                val maxQuestions = Option(child.get(HierarchyConstants.MAXQUESTIONS)).map(_.asInstanceOf[Int]).getOrElse(0)
+                val shuffle = Option(child.get(HierarchyConstants.SHUFFLE)).map(_.asInstanceOf[Boolean]).getOrElse(false)
+                val randomizedChild = if (shuffle) randomization(child) else child
+                val limitedChild = limitQuestions(randomizedChild, maxQuestions)
+
+                limitedChild
+            }).asJava
                     val nestedChildrenIdentifiers = getNestedChildrenIdentifiers(updatedChildrenList)
                     val mergedMap: util.Map[String, String] = createMergedMap(request, nestedChildrenIdentifiers)
                     val userMapJson = JsonUtils.serialize(mergedMap)
@@ -263,28 +266,7 @@ def getPublishedHierarchy(request: Request)(implicit ec: ExecutionContext, oec: 
         }
     })
 }
-
-    private def randomization(childrenList: util.ArrayList[java.util.Map[String, AnyRef]], maxQuestions: Int): util.ArrayList[java.util.Map[String, AnyRef]] = {
-        val updatedChildrenList = new util.ArrayList[java.util.Map[String, AnyRef]]()
-
-        childrenList.asScala.foreach(child => {
-            val nestedChildren = child
-              .getOrDefault(HierarchyConstants.CHILDREN, new util.ArrayList[java.util.Map[String, AnyRef]])
-              .asInstanceOf[util.ArrayList[java.util.Map[String, AnyRef]]]
-
-            val shuffledChildren = Random.shuffle(nestedChildren.asScala).take(maxQuestions).asJava
-
-            val updatedChild = new util.HashMap[String, AnyRef](child)
-            updatedChild.put(HierarchyConstants.CHILDREN, shuffledChildren)
-
-            updatedChildrenList.add(updatedChild)
-        })
-
-        updatedChildrenList
-    }
-
-
-    private def getNestedChildrenIdentifiers(childrenList: util.ArrayList[java.util.Map[String, AnyRef]]): String = {
+    private def getNestedChildrenIdentifiers(childrenList: util.List[java.util.Map[String, AnyRef]]): String = {
         val javaChildrenList: java.util.List[java.util.Map[String, AnyRef]] = childrenList.map(map => mapAsJavaMap(map)).asJava
         javaChildrenList.asScala.flatMap { child =>
             val nestedChildren = child
@@ -314,6 +296,21 @@ def getPublishedHierarchy(request: Request)(implicit ec: ExecutionContext, oec: 
 
         mergedMap
     }
+    def randomization(child: util.Map[String, AnyRef]): util.Map[String, AnyRef] = {
+        val questions = child.getOrDefault(HierarchyConstants.CHILDREN, new util.ArrayList[util.Map[String, AnyRef]]()).asInstanceOf[util.List[util.Map[String, AnyRef]]]
+        util.Collections.shuffle(questions)
+        child
+    }
+
+    def limitQuestions(child: util.Map[String, AnyRef], maxQuestions: Int): util.Map[String, AnyRef] = {
+        if (maxQuestions > 0) {
+            val questions = child.getOrDefault(HierarchyConstants.CHILDREN, new util.ArrayList[util.Map[String, AnyRef]]()).asInstanceOf[util.List[util.Map[String, AnyRef]]]
+            val limitedQuestions = questions.subList(0, Math.min(maxQuestions, questions.size()))
+            child.put(HierarchyConstants.CHILDREN, limitedQuestions)
+        }
+        child
+    }
+
 
     private def generateJwtToken(userMapJson: String): String = {
         val headerOptions: java.util.Map[String, String] = new java.util.HashMap[String, String]()
@@ -578,7 +575,7 @@ def getPublishedHierarchy(request: Request)(implicit ec: ExecutionContext, oec: 
         val hierarchy = fetchHierarchy(request, request.getRequest.get("rootId").asInstanceOf[String])
         hierarchy.map(hierarchy => {
             if (!hierarchy.isEmpty) {
-                if (StringUtils.isNotEmpty(hierarchy.getOrDefault("status", "").asInstanceOf[String]) && statusList.contains(hierarchy.getOrDefault("status", "").asInstanceOf[String])) {
+                if (StringUtils.isNotEmpty(hierarchy.getOrDefault("status", "Draft").asInstanceOf[String]) && statusList.contains(hierarchy.getOrDefault("status", "Draft").asInstanceOf[String])) {
                     val hierarchyMap = mapAsJavaMap(hierarchy)
                     rootHierarchy.put("questionSet", hierarchyMap)
                     RedisCache.set(hierarchyPrefix + request.get("rootId"), JsonUtils.serialize(hierarchyMap))
