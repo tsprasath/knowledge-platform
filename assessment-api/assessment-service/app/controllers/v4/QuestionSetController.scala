@@ -2,6 +2,8 @@ package controllers.v4
 
 import akka.actor.{ActorRef, ActorSystem}
 import controllers.BaseController
+import org.slf4j.{Logger, LoggerFactory}
+
 import javax.inject.{Inject, Named}
 import play.api.mvc.ControllerComponents
 import utils.{ActorNames, ApiId, QuestionSetOperations}
@@ -15,6 +17,7 @@ class QuestionSetController @Inject()(@Named(ActorNames.QUESTION_SET_ACTOR) ques
 	val schemaName: String = "questionset"
 	val version = "1.0"
 
+	private  val logger:Logger = LoggerFactory.getLogger(getClass.getName)
 	def create() = Action.async { implicit request =>
 		val headers = commonHeaders()
 		val body = requestBody()
@@ -73,6 +76,7 @@ class QuestionSetController @Inject()(@Named(ActorNames.QUESTION_SET_ACTOR) ques
 		val questionSet = body.getOrDefault("questionset", new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]];
 		questionSet.putAll(headers)
 		val questionSetRequest = getRequest(questionSet, headers, QuestionSetOperations.publishQuestionSet.toString)
+		logger.debug("questionSetRequest is "+questionSetRequest)
 		setRequestContext(questionSetRequest, version, objectType, schemaName)
 		questionSetRequest.getContext.put("identifier", identifier)
 		getResult(ApiId.PUBLISH_QUESTION_SET, questionSetActor, questionSetRequest)

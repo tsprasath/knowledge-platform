@@ -4,6 +4,7 @@ import com.mashape.unirest.http.Unirest
 
 import java.util
 import org.apache.commons.lang3.StringUtils
+import org.slf4j.{Logger, LoggerFactory}
 import org.sunbird.common.{DateUtils, JsonUtils, Platform}
 import org.sunbird.common.dto.{Request, Response, ResponseHandler}
 import org.sunbird.common.exception.{ClientException, ErrorCodes, ResourceNotFoundException, ServerException}
@@ -24,6 +25,8 @@ object AssessmentManager {
 
 	val skipValidation: Boolean = Platform.getBoolean("assessment.skip.validation", false)
 	val validStatus = List("Draft", "Review")
+
+	private val logger:Logger = LoggerFactory.getLogger(getClass.getName)
 
 	def create(request: Request, errCode: String)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
 		val visibility: String = request.getRequest.getOrDefault("visibility", "Default").asInstanceOf[String]
@@ -202,9 +205,12 @@ object AssessmentManager {
 
 	@throws[Exception]
 	def pushInstructionEvent(identifier: String, node: Node)(implicit oec: OntologyEngineContext): Unit = {
+		logger.debug("Inside the pushInstructionEvent")
 		val (actor, context, objData, eData) = generateInstructionEventMetadata(identifier.replace(".img", ""), node)
 		val beJobRequestEvent: String = LogTelemetryEventUtil.logInstructionEvent(actor.asJava, context.asJava, objData.asJava, eData)
+		logger.debug("beJobRequestEvent is "+beJobRequestEvent)
 		val topic: String = Platform.getString("kafka.topics.instruction", "sunbirddev.learning.job.request")
+		logger.debug("topic for publish "+topic)
 		if (StringUtils.isBlank(beJobRequestEvent)) throw new ClientException("BE_JOB_REQUEST_EXCEPTION", "Event is not generated properly.")
 		oec.kafkaClient.send(beJobRequestEvent, topic)
 	}
