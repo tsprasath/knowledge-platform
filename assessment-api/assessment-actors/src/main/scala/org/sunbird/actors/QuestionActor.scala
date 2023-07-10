@@ -1,5 +1,7 @@
 package org.sunbird.actors
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import org.apache.commons.lang3.StringUtils
 import org.sunbird.`object`.importer.{ImportConfig, ImportManager}
 import org.sunbird.actor.core.BaseActor
@@ -9,13 +11,14 @@ import org.sunbird.graph.OntologyEngineContext
 import org.sunbird.graph.nodes.DataNode
 import org.sunbird.graph.utils.NodeUtil
 import org.sunbird.managers.{AssessmentManager, CopyManager}
-import org.sunbird.utils.RequestUtil
+import org.sunbird.utils.{AssessmentConstants, RequestUtil}
 
 import java.util
 import javax.inject.Inject
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
+import com.fasterxml.jackson.databind.JsonNode
 
 class QuestionActor @Inject()(implicit oec: OntologyEngineContext) extends BaseActor {
 
@@ -23,6 +26,7 @@ class QuestionActor @Inject()(implicit oec: OntologyEngineContext) extends BaseA
 
 	private lazy val importConfig = getImportConfig()
 	private lazy val importMgr = new ImportManager(importConfig)
+	private val mapper = new ObjectMapper()
 
 	override def onReceive(request: Request): Future[Response] = request.getOperation match {
 		case "createQuestion" => AssessmentManager.create(request, "ERR_QUESTION_CREATE")
@@ -116,6 +120,16 @@ class QuestionActor @Inject()(implicit oec: OntologyEngineContext) extends BaseA
 		request.getRequest.put("fields", fields)
 		DataNode.search(request).map(nodeList => {
 			val questionList = nodeList.map(node => {
+				val serverEvaluable = node.getMetadata.getOrDefault(AssessmentConstants.EVAL,AssessmentConstants.FLOWER_BRACKETS)
+				val data = mapper.readValue(serverEvaluable.asInstanceOf[String], classOf[java.util.Map[String, String]])
+				if (data.get(AssessmentConstants.MODE) != null && data.get(AssessmentConstants.MODE).equalsIgnoreCase(AssessmentConstants.SERVER) && !StringUtils.equals(request.get("isEditor").asInstanceOf[String], "true")) {
+					val hideEditorStateAns = AssessmentManager.hideEditorStateAns(node)
+					if (StringUtils.isNotEmpty(hideEditorStateAns))
+						node.getMetadata.put("editorState", hideEditorStateAns)
+					val hideCorrectResponse = AssessmentManager.hideCorrectResponse(node)
+					if (StringUtils.isNotEmpty(hideCorrectResponse))
+						node.getMetadata.put("responseDeclaration", hideCorrectResponse)
+				}
 					NodeUtil.serialize(node, fields, node.getObjectType.toLowerCase.replace("Image", ""), request.getContext.get("version").asInstanceOf[String])
 			}).asJava
 			ResponseHandler.OK.put("questions", questionList).put("count", questionList.size)
