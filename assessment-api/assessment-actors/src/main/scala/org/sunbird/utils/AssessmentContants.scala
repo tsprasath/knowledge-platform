@@ -68,5 +68,11 @@ object AssessmentConstants {
   val CARDINALITY = "cardinality"
   val MAX_SCORE = "maxScore"
   val MULTIPLE = "multiple"
-  val QUESTION_LIST_PRIVATE_URL_PROP = "question.list.search.private.url"
+  val QUESTION_LIST_EDITOR_URL = "question.list.search.editor.url"
+  val EDITOR_STATE = "editorState"
+  val PARAMS = "params"
+  val OPTIONS = "options"
+  val EVAL: String = "eval"
+  val SERVER: String = "server"
+  val FLOWER_BRACKETS: String = "{}"
 }

@@ -1,5 +1,7 @@
 package org.sunbird.managers
 
+import com.fasterxml.jackson.databind.ObjectMapper
+
 import java.util
 import java.util.concurrent.CompletionException
 import org.apache.commons.collections4.{CollectionUtils, MapUtils}
@@ -26,7 +28,7 @@ import scala.concurrent.{ExecutionContext, Future}
 object UpdateHierarchyManager {
     val neo4jCreateTypes: java.util.List[String] = Platform.getStringList("neo4j_objecttypes_enabled", List("Question").asJava)
     val logger = LoggerFactory.getLogger(UpdateHierarchyManager.getClass)
-
+    val mapper: ObjectMapper = new ObjectMapper()
     @throws[Exception]
     def updateHierarchy(request: Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
         logger.info("payload validation started")
@@ -37,6 +39,27 @@ object UpdateHierarchyManager {
         request.getContext.put(HierarchyConstants.ROOT_ID, rootId)
         logger.info("updating context with rootId and starting root node validation")
         getValidatedRootNode(rootId, request).map(node => {
+            val eval = node.getMetadata.getOrDefault("eval", "{}").asInstanceOf[String]
+           // val serverEvaluable = node.getMetadata.getOrDefault("eval", "{}")
+            val data = mapper.readValue(eval, classOf[java.util.Map[String, String]])
+            var mode = data.get("mode")
+            if (nodesModified.get(rootId) != null) {
+                val updMode = nodesModified.get(rootId).asInstanceOf[java.util.LinkedHashMap[String, AnyRef]]
+                  .get("metadata").asInstanceOf[java.util.LinkedHashMap[String, AnyRef]]
+                  .getOrElse("eval", new util.LinkedHashMap())
+                  .asInstanceOf[java.util.LinkedHashMap[String, AnyRef]].get("mode").asInstanceOf[String]
+                if(StringUtils.isNotEmpty(mode) && !mode.equals(updMode))
+                    throw new ClientException(ErrorCodes.ERR_BAD_REQUEST.name(), "QuestionSet eval status cannot be modified")
+                mode = updMode
+            }
+
+            nodesModified.foreach {
+                n =>
+                    if (!rootId.equals(n._1) && !(mode.equals(n._2.asInstanceOf[java.util.LinkedHashMap[String, AnyRef]].get("metadata")
+                      .asInstanceOf[java.util.LinkedHashMap[String, AnyRef]].getOrElse("eval", new util.LinkedHashMap())
+                      .asInstanceOf[java.util.LinkedHashMap[String, AnyRef]].getOrDefault("mode", "client").asInstanceOf[String])))
+                        throw new ClientException(ErrorCodes.ERR_BAD_REQUEST.name(), "All children of QuestionSet should be same eval status")
+            }
             logger.info("inside RNV: node data - ", node)
             getExistingHierarchy(request, node).map(existingHierarchy => {
                 logger.info("inside RNV: existing node hierarchy data")

@@ -34,14 +34,8 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
     getResult(ApiId.CREATE_QUESTION, questionActor, questionRequest)
   }
 
-  def read(identifier: String, mode: Option[String], fields: Option[String]) = Action.async { implicit request =>
-    val headers = commonHeaders()
-    val question = new java.util.HashMap().asInstanceOf[java.util.Map[String, Object]]
-    question.putAll(headers)
-    question.putAll(Map("identifier" -> identifier, "fields" -> fields.getOrElse(""), "mode" -> mode.getOrElse("read")).asJava)
-    val questionRequest = getRequest(question, headers, QuestionOperations.readQuestion.toString)
-    setRequestContext(questionRequest, version, objectType, schemaName)
-    getResult(ApiId.READ_QUESTION, questionActor, questionRequest)
+  def read(identifier: String, mode: Option[String], fields: Option[String]) = {
+    readQuestion(identifier, mode, fields, false)
   }
 
   def privateRead(identifier: String, mode: Option[String], fields: Option[String]) = Action.async { implicit request =>
@@ -118,7 +112,7 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
   }
 
   def list(fields: Option[String]) = {
-    listCommon(fields, false)
+    fetchQuestions(fields, false)
   }
   
   def reject(identifier: String) = Action.async { implicit request =>
@@ -217,19 +211,33 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
     logger.info("in Future sequence")
     Await.result(f, Duration.apply("30s"))
   }
-  def privateList(fields: Option[String]) = {
-    listCommon(fields, true)
+  def editorList(fields: Option[String]) = {
+    fetchQuestions(fields, true)
   }
-  private def listCommon(fields: Option[String], exclusive: Boolean) = Action.async { implicit request =>
+  private def fetchQuestions(fields: Option[String], exclusive: Boolean) = Action.async { implicit request =>
     val headers = commonHeaders()
     val body = requestBody()
     val question = body.getOrDefault("search", new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]];
     question.putAll(headers)
     question.put("fields", fields.getOrElse(""))
-    if (exclusive) question.put("isPrivate", "true")
+    if (exclusive) question.put("isEditor", "true")
     val questionRequest = getRequest(question, headers, QuestionOperations.listQuestions.toString)
     questionRequest.put("identifiers", questionRequest.get("identifier"))
     setRequestContext(questionRequest, version, objectType, schemaName)
     getResult(ApiId.LIST_QUESTIONS, questionActor, questionRequest)
+  }
+
+  def editorRead(identifier: String, mode: Option[String], fields: Option[String]) = {
+    readQuestion(identifier, mode, fields, true)
+  }
+  private def readQuestion(identifier: String, mode: Option[String], fields: Option[String], exclusive: Boolean) = Action.async { implicit request =>
+    val headers = commonHeaders()
+    val question = new java.util.HashMap().asInstanceOf[java.util.Map[String, Object]]
+    question.putAll(headers)
+    question.putAll(Map("identifier" -> identifier, "fields" -> fields.getOrElse(""), "mode" -> mode.getOrElse("read")).asJava)
+    if (exclusive) question.put("isEditor", "true")
+    val questionRequest = getRequest(question, headers, QuestionOperations.readQuestion.toString)
+    setRequestContext(questionRequest, version, objectType, schemaName)
+    getResult(ApiId.READ_QUESTION, questionActor, questionRequest)
   }
 }
