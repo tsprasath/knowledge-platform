@@ -12,7 +12,7 @@
       "status"
     ],
     "update" : [
-      "visibility", "code", "status", "mimeType"
+      "code", "status", "mimeType"
     ]
   },
   "version": "enable",
