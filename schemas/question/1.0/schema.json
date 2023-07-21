@@ -624,7 +624,7 @@
       "type": "string",
       "format": "url"
     },
-    "evaluable": {
+    "serverEvaluable": {
       "type": "boolean",
       "default": false
     },

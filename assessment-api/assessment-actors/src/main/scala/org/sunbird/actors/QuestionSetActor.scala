@@ -1,10 +1,10 @@
 package org.sunbird.actors
 
 import java.util
-
 import javax.inject.Inject
 import org.apache.commons.collections4.CollectionUtils
 import org.apache.commons.lang3.StringUtils
+import org.slf4j.{Logger, LoggerFactory}
 import org.sunbird.`object`.importer.{ImportConfig, ImportManager}
 import org.sunbird.actor.core.BaseActor
 import org.sunbird.cache.impl.RedisCache
@@ -25,6 +25,8 @@ class QuestionSetActor @Inject()(implicit oec: OntologyEngineContext) extends Ba
 	implicit val ec: ExecutionContext = getContext().dispatcher
 	private lazy val importConfig = getImportConfig()
 	private lazy val importMgr = new ImportManager(importConfig)
+
+	private val logger:Logger = LoggerFactory.getLogger(getClass.getName)
 
 	override def onReceive(request: Request): Future[Response] = request.getOperation match {
 		case "createQuestionSet" => AssessmentManager.create(request, "ERR_QUESTION_SET_CREATE")
@@ -67,6 +69,7 @@ class QuestionSetActor @Inject()(implicit oec: OntologyEngineContext) extends Ba
 	}
 
 	def publish(request: Request): Future[Response] = {
+		logger.debug("Inside the publish question set actor")
 		val lastPublishedBy: String = request.getRequest.getOrDefault("lastPublishedBy", "").asInstanceOf[String]
 		request.getRequest.put("identifier", request.getContext.get("identifier"))
 		request.put("mode", "edit")
@@ -75,6 +78,7 @@ class QuestionSetActor @Inject()(implicit oec: OntologyEngineContext) extends Ba
 				AssessmentManager.validateQuestionSetHierarchy(hierarchyString.asInstanceOf[String], node.getMetadata.getOrDefault("createdBy", "").asInstanceOf[String])
 				if(StringUtils.isNotBlank(lastPublishedBy))
 					node.getMetadata.put("lastPublishedBy", lastPublishedBy)
+				logger.debug("lastPublishedBy is "+lastPublishedBy)
 				AssessmentManager.pushInstructionEvent(node.getIdentifier, node)
 				ResponseHandler.OK.putAll(Map[String, AnyRef]("identifier" -> node.getIdentifier.replace(".img", ""), "message" -> "QuestionSet is successfully sent for Publish").asJava)
 			})

@@ -16,6 +16,7 @@ import org.sunbird.parseq.Task
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
 
@@ -141,10 +142,26 @@ object DataNode {
             request.put("identifier", node.getIdentifier)
         val externalPropsResponse = oec.graphService.readExternalProps(request, externalProps.filter(prop => fields.contains(prop)))
         externalPropsResponse.map(response => {
+          val serverEvaluable = node.getMetadata.getOrDefault("serverEvaluable", "")
+          if (serverEvaluable.toString == "true" && !StringUtils.equals(request.get("isPrivate").asInstanceOf[String], "true")) {
+            val externalData = Optional.ofNullable(response.get(node.getIdentifier).asInstanceOf[util.Map[String, AnyRef]]).orElse(new util.HashMap[String, AnyRef]())
+            val externalDataWithoutEditor = externalData.filterNot { case (key, _) => key == "editorState" }
+            val responseDeclaration = response.get("responseDeclaration") match {
+              case Some(map: Map[_, _]) => map.asInstanceOf[Map[String, AnyRef]].filterNot { case (key, _) => key == "correctResponse" }
+              case _ => new mutable.HashMap[String, AnyRef]()
+            }
+            val externalDataWithoutCorrectResponse = externalDataWithoutEditor + ("responseDeclaration" -> responseDeclaration)
+            node.getMetadata.putAll(externalDataWithoutCorrectResponse)
+            //node.getMetadata.putAll(response.getResult)
+            Future {
+              node
+            }
+          } else {
             node.getMetadata.putAll(response.getResult)
             Future {
-                node
+              node
             }
+          }
         }).flatMap(f => f)
     }
 
@@ -289,8 +306,21 @@ object DataNode {
     val externalPropsResponse = oec.graphService.readExternalProps(request, externalProps.filter(prop => fields.contains(prop)))
     externalPropsResponse.map(response => {
       nodes.foreach(node => {
-        val externalData = Optional.ofNullable(response.get(node.getIdentifier).asInstanceOf[util.Map[String, AnyRef]]).orElse(new util.HashMap[String, AnyRef]())
-        node.getMetadata.putAll(externalData)
+        val serverEvaluable = node.getMetadata.getOrDefault("serverEvaluable", "")
+        if (serverEvaluable.toString == "true" && !StringUtils.equals(request.get("isPrivate").asInstanceOf[String], "true")) {
+          val externalData = Optional.ofNullable(response.get(node.getIdentifier).asInstanceOf[util.Map[String, AnyRef]])
+            .orElse(new util.HashMap[String, AnyRef]())
+          val externalDataWithoutEditor = externalData.filterNot { case (key, _) => key == "editorState" }
+          val responseDeclaration = response.get("responseDeclaration") match {
+            case Some(map: Map[_, _]) => map.asInstanceOf[Map[String, AnyRef]].filterNot { case (key, _) => key == "correctResponse" }
+            case _ => new mutable.HashMap[String, AnyRef]()
+          }
+          val externalDataWithoutCorrectResponse = externalDataWithoutEditor + ("responseDeclaration" -> responseDeclaration)
+          node.getMetadata.putAll(externalDataWithoutCorrectResponse)
+        } else {
+          val externalData = Optional.ofNullable(response.get(node.getIdentifier).asInstanceOf[util.Map[String, AnyRef]]).orElse(new util.HashMap[String, AnyRef]())
+          node.getMetadata.putAll(externalData)
+        }
       })
       nodes
     })
